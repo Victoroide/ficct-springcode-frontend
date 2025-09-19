@@ -1,0 +1,99 @@
+/* Dark mode overrides for SecurityPanel */
+.dark .security-panel {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+.dark .security-panel-header {
+  color: #f8fafc;
+}
+
+.dark .security-score-circle {
+  stroke: #334155;
+}
+
+.dark .security-score-progress {
+  stroke: #f59e0b;
+}
+
+.dark .security-score-number {
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.dark .security-score-text {
+  color: #94a3b8;
+}
+
+.dark .security-feature-item {
+  border-color: #334155;
+}
+
+.dark .security-feature-title {
+  color: #f8fafc;
+}
+
+.dark .security-feature-desc {
+  color: #94a3b8;
+}
+
+/* Badges */
+.dark .badge-critical {
+  background-color: #ef4444;
+  color: white;
+}
+
+.dark .badge-recommended {
+  background-color: #3b82f6;
+  color: white;
+}
+
+/* Security Wizard */
+.dark .security-wizard-modal {
+  background-color: #0f172a;
+}
+
+.dark .security-wizard-title {
+  color: #f8fafc;
+}
+
+.dark .security-progress-bar {
+  background-color: #334155;
+}
+
+.dark .security-progress-fill {
+  background-color: #3b82f6;
+}
+
+.dark .security-progress-text {
+  color: #f8fafc;
+}
+
+.dark .security-progress-percentage {
+  color: #3b82f6;
+}
+
+.dark .security-stats-item {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+.dark .security-stats-value {
+  color: var(--foreground);
+}
+
+.dark .security-stats-label {
+  color: #94a3b8;
+}
+
+.dark .completed-count {
+  color: #10b981 !important;
+}
+
+.dark .pending-count {
+  color: #3b82f6 !important;
+}
+
+.dark .high-priority-count {
+  color: #f59e0b !important;
+}

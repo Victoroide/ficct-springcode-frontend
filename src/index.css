@@ -1,0 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* Theme variables */
+:root {
+  --background: #ffffff;
+  --foreground: #1e293b;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --border: #e2e8f0;
+  --input: #f1f5f9;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --accent: #0f172a;
+  --accent-foreground: #ffffff;
+  --card: #ffffff;
+  --card-foreground: #1e293b;
+}
+
+.dark {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --border: #1e293b;
+  --input: #1e293b;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --accent: #f8fafc;
+  --accent-foreground: #0f172a;
+  --card: #1e293b;
+  --card-foreground: #f8fafc;
+}
+
+/* Apply theme to body and components */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Component-specific dark mode adjustments */
+.dark .card,
+.dark .bg-white {
+  background-color: var(--card);
+  border-color: var(--border);
+  color: var(--card-foreground);
+}
+
+.dark .bg-slate-50 {
+  background-color: var(--muted);
+}
+
+/* Text color fixes for dark mode */
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-black {
+  color: var(--foreground) !important;
+}
+
+.dark .text-slate-700,
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark p,
+.dark label,
+.dark span:not(.bg-blue-600):not(.text-blue-600):not([class*="text-"]) {
+  color: var(--muted-foreground) !important;
+}
+
+/* Fix for specific components */
+.dark .security-status-panel p,
+.dark .security-wizard-modal p,
+.dark .security-status-panel span:not(.bg-blue-600):not(.text-blue-600):not([class*="text-"]),
+.dark .security-panel-text {
+  color: #94a3b8 !important;
+}
+
+/* Fix for security panel numbers */
+.dark .security-score-number {
+  color: #f8fafc !important;
+}
+
+.dark .security-summary-text {
+  color: #cbd5e1 !important;
+}
+
+/* Input styles for dark mode */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: var(--input);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+/* Button styles for dark mode */
+.dark .btn-primary,
+.dark .bg-blue-600 {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Custom styles for enhanced interactivity */
+input:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.group:hover svg {
+  transform: scale(1.1);
+}
+
+/* 2FA input animations */
+input[type="text"][maxlength="1"]:focus + input {
+  border-color: rgb(59 130 246);
+}
+
+/* MANDATORY CSS Fixes for cursor issues */
+.btn, button, [role="button"], .clickable {
+  cursor: pointer !important;
+}
+
+.btn:hover, button:hover {
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.btn:disabled, button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Loading cursor during API calls */
+.loading {
+  cursor: wait;
+}
+
+/* Ensure all interactive elements have pointer cursor */
+a, .dropdown-item, .menu-item, .tab, .card-clickable {
+  cursor: pointer;
+}
