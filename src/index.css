@@ -1,8 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
-/* Theme variables */
+/* Base Variables */
 :root {
+  /* Base colors - Light mode only */
   --background: #ffffff;
   --foreground: #1e293b;
   --muted: #f1f5f9;
@@ -15,90 +16,123 @@
   --accent-foreground: #ffffff;
   --card: #ffffff;
   --card-foreground: #1e293b;
+  --success: #10b981;
+  --success-foreground: #ffffff;
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
+  --error: #ef4444;
+  --error-foreground: #ffffff;
+
+  /* Animation properties */
+  --animation-duration: 0.2s;
+  --transition-duration: 0.15s;
+
+  /* Dashboard specific colors */
+  --dashboard-bg: #f8fafc;
+  --dashboard-card: #ffffff;
+  --dashboard-border: #e2e8f0;
+  --dashboard-text: #1e293b;
+  --dashboard-text-muted: #64748b;
+  --dashboard-accent: #3b82f6;
 }
 
-.dark {
-  --background: #0f172a;
-  --foreground: #f8fafc;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  --border: #1e293b;
-  --input: #1e293b;
-  --primary: #3b82f6;
-  --primary-foreground: #ffffff;
-  --accent: #f8fafc;
-  --accent-foreground: #0f172a;
-  --card: #1e293b;
-  --card-foreground: #f8fafc;
+/* Dark mode removed */
+
+
+/* Accessibility features removed */
+
+
+/* UML Editor specific variables - Light mode only */
+:root {
+  /* UML Canvas */
+  --uml-canvas-bg: #f8fafc;
+  --uml-grid-color: #e2e8f0;
+  
+  /* UML Classes */
+  --uml-class-bg: #ffffff;
+  --uml-class-border: #475569;
+  --uml-class-text: #1e293b;
+  --uml-class-header-bg: #f1f5f9;
+  
+  /* UML Interfaces */
+  --uml-interface-bg: #ecfdf5;
+  --uml-interface-border: #059669;
+  --uml-interface-text: #064e3b;
+  --uml-interface-header-bg: #d1fae5;
+  
+  /* UML Abstract Classes */
+  --uml-abstract-bg: #fef3c7;
+  --uml-abstract-border: #d97706;
+  --uml-abstract-text: #92400e;
+  --uml-abstract-header-bg: #fef9c3;
+  
+  /* UML Enums */
+  --uml-enum-bg: #ede9fe;
+  --uml-enum-border: #7c3aed;
+  --uml-enum-text: #4c1d95;
+  --uml-enum-header-bg: #ddd6fe;
+  
+  /* UML Records */
+  --uml-record-bg: #fce7f3;
+  --uml-record-border: #db2777;
+  --uml-record-text: #831843;
+  --uml-record-header-bg: #fbcfe8;
+  
+  /* UML Relationships */
+  --uml-association-color: #475569;
+  --uml-inheritance-color: #2563eb;
+  --uml-composition-color: #dc2626;
+  --uml-aggregation-color: #7c3aed;
+  --uml-dependency-color: #0891b2;
+  --uml-realization-color: #059669;
+  --uml-generalization-color: #2563eb;
+  
+  /* UML Interactive States */
+  --uml-selection-color: #3b82f6;
+  --uml-hover-color: #60a5fa;
 }
 
-/* Apply theme to body and components */
+/* Dark mode UML styles removed */
+
+
+/* Apply styles to body */
 body {
   background-color: var(--background);
   color: var(--foreground);
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Component-specific dark mode adjustments */
-.dark .card,
-.dark .bg-white {
-  background-color: var(--card);
-  border-color: var(--border);
-  color: var(--card-foreground);
+/* Toast animations */
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
-.dark .bg-slate-50 {
-  background-color: var(--muted);
+@keyframes toast-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
 }
 
-/* Text color fixes for dark mode */
-.dark .text-slate-900,
-.dark .text-slate-800,
-.dark .text-black {
-  color: var(--foreground) !important;
+.animate-toast-enter {
+  animation: toast-enter 0.3s ease-out;
 }
 
-.dark .text-slate-700,
-.dark .text-slate-600,
-.dark .text-slate-500,
-.dark p,
-.dark label,
-.dark span:not(.bg-blue-600):not(.text-blue-600):not([class*="text-"]) {
-  color: var(--muted-foreground) !important;
+.animate-toast-exit {
+  animation: toast-exit 0.2s ease-in;
 }
 
-/* Fix for specific components */
-.dark .security-status-panel p,
-.dark .security-wizard-modal p,
-.dark .security-status-panel span:not(.bg-blue-600):not(.text-blue-600):not([class*="text-"]),
-.dark .security-panel-text {
-  color: #94a3b8 !important;
-}
-
-/* Fix for security panel numbers */
-.dark .security-score-number {
-  color: #f8fafc !important;
-}
-
-.dark .security-summary-text {
-  color: #cbd5e1 !important;
-}
-
-/* Input styles for dark mode */
-.dark input,
-.dark select,
-.dark textarea {
-  background-color: var(--input);
-  border-color: var(--border);
-  color: var(--foreground);
-}
-
-/* Button styles for dark mode */
-.dark .btn-primary,
-.dark .bg-blue-600 {
-  background-color: var(--primary);
-  color: var(--primary-foreground);
-}
+/* Dark mode styles removed */
 
 /* Custom styles for enhanced interactivity */
 input:focus {

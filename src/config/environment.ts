@@ -40,7 +40,7 @@ class Environment {
         environment: (import.meta.env.VITE_APP_ENV as any) || 'development',
       },
       api: {
-        baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000',
+        baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost', // URL base del servidor (nginx proxy)
         timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '10000', 10),
         retryAttempts: parseInt(import.meta.env.VITE_API_RETRY_ATTEMPTS || '3', 10),
       },

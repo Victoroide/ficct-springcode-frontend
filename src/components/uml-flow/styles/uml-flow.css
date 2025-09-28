@@ -1,0 +1,350 @@
+/**
+ * UML Flow Editor Styles
+ */
+
+/* Base styles for React Flow */
+.react-flow__handle {
+  background-color: #1a192b;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.react-flow__handle-top {
+  top: -4px;
+}
+
+.react-flow__handle-right {
+  right: -4px;
+}
+
+.react-flow__handle-bottom {
+  bottom: -4px;
+}
+
+.react-flow__handle-left {
+  left: -4px;
+}
+
+/* UML Node Styles */
+.uml-node {
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid #1a192b;
+  background-color: white;
+  overflow: hidden;
+  min-width: 150px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.uml-node.selected {
+  box-shadow: 0 0 0 2px #1a192b;
+}
+
+.uml-node-header {
+  background-color: #f0f0f0;
+  padding: 8px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+}
+
+.uml-node-stereotype {
+  font-size: 0.75rem;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.uml-node-title {
+  font-weight: bold;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.uml-node-section {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  min-height: 30px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.uml-node-section:last-child {
+  border-bottom: none;
+}
+
+.uml-attribute,
+.uml-method,
+.uml-record-component,
+.uml-enum-constant {
+  font-size: 0.8rem;
+  margin: 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.visibility-indicator {
+  display: inline-block;
+  width: 12px;
+  text-align: center;
+}
+
+.visibility-indicator.private {
+  color: #e74c3c;
+}
+
+.visibility-indicator.protected {
+  color: #f39c12;
+}
+
+.visibility-indicator.public {
+  color: #2ecc71;
+}
+
+.attribute-name,
+.method-name,
+.component-name {
+  font-weight: 500;
+}
+
+.attribute-separator,
+.method-separator,
+.component-separator {
+  margin: 0 2px;
+  color: #666;
+}
+
+.attribute-type,
+.method-type,
+.component-type,
+.method-params {
+  color: #555;
+  font-style: italic;
+}
+
+.static-indicator,
+.abstract-indicator {
+  margin-left: 4px;
+  font-style: italic;
+  font-size: 0.7rem;
+}
+
+.static-indicator {
+  color: #3498db;
+}
+
+.abstract-indicator {
+  color: #9b59b6;
+}
+
+.method-params {
+  font-style: normal;
+}
+
+.empty-section-message {
+  color: #aaa;
+  font-style: italic;
+  text-align: center;
+  font-size: 0.75rem;
+  padding: 4px 0;
+}
+
+/* Node Type-specific Styles */
+
+/* Class Node */
+/* Class Node - default styles are inherited from base uml-node */
+
+/* Interface Node */
+.interface-node {
+  border-style: dashed;
+}
+
+.interface-node .interface-header {
+  background-color: #e8f4fd;
+}
+
+/* Abstract Class Node */
+.abstract-class-node {
+  border-style: solid;
+}
+
+.abstract-class-node .abstract-header {
+  background-color: #f0e8fd;
+}
+
+.abstract-class-node .uml-node-title.italic {
+  font-style: italic;
+}
+
+/* Enum Node */
+.enum-node .enum-header {
+  background-color: #e8fdf0;
+}
+
+.enum-node .enum-section {
+  background-color: #f8fff8;
+}
+
+.enum-value {
+  margin-left: 4px;
+  color: #777;
+}
+
+/* Record Node */
+.record-node .record-header {
+  background-color: #fdf0e8;
+}
+
+/* UML Relationship Edge Styles */
+.uml-relationship-edge {
+  stroke-width: 1px;
+}
+
+.uml-relationship-edge.inheritance {
+  stroke: #000;
+}
+
+.uml-relationship-edge.realization,
+.uml-relationship-edge.dependency {
+  stroke: #000;
+  stroke-dasharray: 5 5;
+}
+
+.uml-relationship-edge.aggregation,
+.uml-relationship-edge.composition {
+  stroke: #000;
+}
+
+.uml-relationship-edge.association {
+  stroke: #000;
+}
+
+.uml-relationship-label {
+  border: 1px solid transparent;
+  transition: border-color 0.2s;
+  font-size: 0.8rem;
+}
+
+.uml-relationship-multiplicity {
+  font-size: 0.7rem;
+  padding: 1px;
+  border-radius: 2px;
+}
+
+/* Connection Handles */
+.connection-handle {
+  width: 8px;
+  height: 8px;
+  border: 2px solid #fff;
+  background-color: #1a192b;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.connection-handle.source-handle {
+  width: 10px;
+  height: 10px;
+  background-color: #3498db;
+  z-index: 10;
+}
+
+.uml-node:hover .connection-handle,
+.uml-node.selected .connection-handle {
+  opacity: 1;
+}
+
+.uml-node:hover .connection-handle.source-handle {
+  opacity: 0.6;
+}
+
+.uml-node.selected .connection-handle.source-handle,
+.connection-handle.source-handle:hover {
+  opacity: 1;
+}
+
+.connection-handle.top-handle {
+  top: -4px;
+}
+
+.connection-handle.bottom-handle {
+  bottom: -4px;
+}
+
+.connection-handle.left-handle {
+  left: -4px;
+}
+
+.connection-handle.right-handle {
+  right: -4px;
+}
+
+/* Animation for cursor position */
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.7; }
+}
+
+.collaborator-cursor {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1000;
+  animation: pulse 2s infinite ease-in-out;
+}
+
+/* Context menu styling */
+.uml-context-menu {
+  position: absolute;
+  z-index: 1000;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  min-width: 150px;
+  padding: 4px 0;
+}
+
+.uml-context-menu-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.uml-context-menu-item:hover {
+  background-color: #f5f5f5;
+}
+
+.uml-context-menu-item.danger {
+  color: #e74c3c;
+}
+
+.uml-context-menu-item.danger:hover {
+  background-color: #fee;
+}
+
+.uml-context-menu-divider {
+  height: 1px;
+  background-color: #eee;
+  margin: 4px 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .uml-node {
+    min-width: 120px;
+  }
+  
+  .uml-node-title {
+    font-size: 0.8rem;
+  }
+  
+  .uml-attribute,
+  .uml-method,
+  .uml-record-component,
+  .uml-enum-constant {
+    font-size: 0.7rem;
+  }
+}

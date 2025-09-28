@@ -1,4 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import { v4 as uuidv4 } from 'uuid'
 
 interface Notification {
   id: string
@@ -51,7 +52,7 @@ const uiSlice = createSlice({
     addNotification: (state, action: PayloadAction<Omit<Notification, 'id'>>) => {
       const notification: Notification = {
         ...action.payload,
-        id: Date.now().toString(),
+        id: uuidv4(), // Usar UUID para evitar duplicados
       }
       state.notifications.push(notification)
     },

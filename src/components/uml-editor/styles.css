@@ -1,0 +1,777 @@
+/**
+ * UML Editor Styles
+ * Theme-aware styling for the UML diagram editor
+ */
+
+/* Theme Variables */
+:root {
+  /* Light Theme */
+  /* Canvas */
+  --canvas-bg: #f8fafc;
+  --grid-color: #e2e8f0;
+  /* UML Classes */
+  --class-bg: #ffffff;
+  --class-border: #475569;
+  --class-text: #1e293b;
+  --class-header-bg: #f1f5f9;
+  /* Interfaces */
+  --interface-bg: #ecfdf5;
+  --interface-border: #059669;
+  --interface-text: #064e3b;
+  --interface-header-bg: #d1fae5;
+  /* Abstract Classes */
+  --abstract-bg: #fef3c7;
+  --abstract-border: #d97706;
+  --abstract-text: #92400e;
+  --abstract-header-bg: #fef9c3;
+  /* Enums */
+  --enum-bg: #ede9fe;
+  --enum-border: #7c3aed;
+  --enum-text: #4c1d95;
+  --enum-header-bg: #ddd6fe;
+  /* Records */
+  --record-bg: #fce7f3;
+  --record-border: #db2777;
+  --record-text: #831843;
+  --record-header-bg: #fbcfe8;
+  /* Relationships */
+  --association-color: #475569;
+  --inheritance-color: #2563eb;
+  --composition-color: #dc2626;
+  --aggregation-color: #7c3aed;
+  --dependency-color: #0891b2;
+  --realization-color: #059669;
+  --generalization-color: #2563eb;
+  /* Interactive States */
+  --selection-color: #3b82f6;
+  --hover-color: #60a5fa;
+  --active-tool-color: #3b82f6;
+  --error-color: #ef4444;
+  --success-color: #10b981;
+  /* Miscellaneous */
+  --context-menu-bg: #ffffff;
+  --context-menu-border: #e2e8f0;
+  --popup-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Dark Theme */
+.dark {
+  /* Canvas */
+  --canvas-bg: #0f172a;
+  --grid-color: #334155;
+  /* UML Classes */
+  --class-bg: #1e293b;
+  --class-border: #cbd5e1;
+  --class-text: #f8fafc;
+  --class-header-bg: #334155;
+  /* Interfaces */
+  --interface-bg: #064e3b;
+  --interface-border: #10b981;
+  --interface-text: #d1fae5;
+  --interface-header-bg: #065f46;
+  /* Abstract Classes */
+  --abstract-bg: #92400e;
+  --abstract-border: #f59e0b;
+  --abstract-text: #fef3c7;
+  --abstract-header-bg: #b45309;
+  /* Enums */
+  --enum-bg: #4c1d95;
+  --enum-border: #a78bfa;
+  --enum-text: #ede9fe;
+  --enum-header-bg: #5b21b6;
+  /* Records */
+  --record-bg: #831843;
+  --record-border: #f9a8d4;
+  --record-text: #fce7f3;
+  --record-header-bg: #9d174d;
+  /* Relationships */
+  --association-color: #cbd5e1;
+  --inheritance-color: #60a5fa;
+  --composition-color: #f87171;
+  --aggregation-color: #a78bfa;
+  --dependency-color: #22d3ee;
+  --realization-color: #34d399;
+  --generalization-color: #60a5fa;
+  /* Interactive States */
+  --selection-color: #3b82f6;
+  --hover-color: #1d4ed8;
+  --active-tool-color: #2563eb;
+  --error-color: #f87171;
+  --success-color: #34d399;
+  /* Miscellaneous */
+  --context-menu-bg: #1e293b;
+  --context-menu-border: #334155;
+  --popup-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* UML Editor Container - RESPONSIVE */
+.uml-editor {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.3s ease;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .uml-editor {
+    height: 100dvh; /* Dynamic viewport height for mobile */
+  }
+}
+
+/* Tablet and mobile layout adjustments */
+@media (max-width: 1024px) {
+  .uml-editor {
+    flex-direction: column;
+  }
+}
+
+/* Canvas */
+.uml-editor-canvas {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  transition: background-color 0.3s ease;
+  background-color: var(--uml-canvas-bg);
+}
+
+/* Grid */
+.uml-editor-canvas.show-grid {
+  background-image: 
+    linear-gradient(to right, var(--uml-grid-color) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--uml-grid-color) 1px, transparent 1px);
+}
+
+/* Toolbar - RESPONSIVE */
+.uml-editor-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  background-color: var(--uml-class-header-bg);
+  border-bottom: 1px solid var(--uml-class-border);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+  z-index: 10;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Mobile toolbar adjustments */
+@media (max-width: 768px) {
+  .uml-editor-toolbar {
+    padding: 0.25rem;
+    gap: 0.25rem;
+  }
+  
+  .uml-editor-toolbar .tool-group {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+}
+
+.uml-editor-toolbar button {
+  background-color: transparent;
+  border: 1px solid var(--uml-class-border);
+  color: var(--uml-class-text);
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  margin-right: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.uml-editor-toolbar button:hover {
+  background-color: var(--uml-hover-color);
+  color: #fff;
+}
+
+.uml-editor-toolbar button.active {
+  background-color: var(--uml-selection-color);
+  color: #fff;
+}
+
+.uml-editor-toolbar button svg {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.25rem;
+}
+
+/* Tool Groups */
+.tool-group {
+  display: flex;
+  padding: 0 0.5rem;
+  border-right: 1px solid var(--class-border);
+  margin-right: 0.5rem;
+}
+
+/* UML Elements - RESPONSIVE */
+.uml-element {
+  position: absolute;
+  border: 2px solid;
+  border-radius: 0.25rem;
+  background-color: var(--uml-class-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  cursor: move;
+  user-select: none;
+  min-width: 120px;
+  min-height: 80px;
+  transition: border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+  overflow: hidden;
+  font-size: 0.875rem;
+}
+
+/* Mobile UML element adjustments */
+@media (max-width: 768px) {
+  .uml-element {
+    min-width: 140px;
+    min-height: 100px;
+    font-size: 0.75rem;
+    border-width: 1px;
+  }
+  
+  .uml-element .element-header {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.875rem;
+  }
+  
+  .uml-element .attribute-item,
+  .uml-element .method-item {
+    padding: 0.375rem 0.5rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* Tablet adjustments */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .uml-element {
+    min-width: 130px;
+    min-height: 90px;
+    font-size: 0.8125rem;
+  }
+}
+
+/* Selected element */
+.uml-element.selected {
+  box-shadow: 0 0 0 2px var(--uml-selection-color), 0 1px 3px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+/* Element header */
+.element-header {
+  padding: 0.5rem;
+  font-weight: bold;
+  text-align: center;
+  border-bottom: 1px solid;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Element sections */
+.element-section {
+  position: relative;
+  border-bottom: 1px solid;
+  padding: 0.25rem 0;
+  transition: border-color 0.3s ease;
+}
+
+.element-section:last-child {
+  border-bottom: none;
+}
+
+.section-title {
+  padding: 0.25rem 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  background-color: var(--class-header-bg);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Attributes & Methods */
+.attribute-item,
+.method-item {
+  padding: 0.25rem 0.5rem;
+  position: relative;
+  font-size: 0.875rem;
+  cursor: default;
+  transition: background-color 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.attribute-item:hover,
+.method-item:hover {
+  background-color: var(--hover-color);
+  color: #fff;
+}
+
+.item-content {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.item-actions {
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.attribute-item:hover .item-actions,
+.method-item:hover .item-actions {
+  opacity: 1;
+}
+
+.item-actions button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.125rem;
+  font-size: 0.75rem;
+  color: inherit;
+}
+
+/* Visibility icons */
+.visibility-icon {
+  display: inline-block;
+  width: 1rem;
+  text-align: center;
+}
+
+/* Element resize handles */
+.resize-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: var(--selection-color);
+  border-radius: 50%;
+}
+
+.resize-handle.nw {
+  top: -4px;
+  left: -4px;
+  cursor: nwse-resize;
+}
+
+.resize-handle.ne {
+  top: -4px;
+  right: -4px;
+  cursor: nesw-resize;
+}
+
+.resize-handle.sw {
+  bottom: -4px;
+  left: -4px;
+  cursor: nesw-resize;
+}
+
+.resize-handle.se {
+  bottom: -4px;
+  right: -4px;
+  cursor: nwse-resize;
+}
+
+/* Relationship lines */
+.relationship {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.relationship path {
+  transition: stroke 0.3s ease;
+}
+
+.relationship-label {
+  font-size: 0.75rem;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.relationship.selected path {
+  stroke-width: 2.5;
+}
+
+/* Relationship endpoints/arrows */
+.relationship-endpoint {
+  fill: var(--class-bg);
+  stroke-width: 1.5;
+  transition: fill 0.3s ease, stroke 0.3s ease;
+}
+
+/* Editing interfaces */
+.editor-input {
+  background-color: var(--canvas-bg);
+  color: var(--class-text);
+  border: 1px solid var(--class-border);
+  padding: 0.25rem;
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  border-radius: 0.125rem;
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.editor-input:focus {
+  outline: none;
+  border-color: var(--selection-color);
+}
+
+/* Context menu */
+.context-menu {
+  position: fixed;
+  background-color: var(--context-menu-bg);
+  border: 1px solid var(--context-menu-border);
+  border-radius: 0.25rem;
+  box-shadow: var(--popup-shadow);
+  min-width: 160px;
+  z-index: 100;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.context-menu-item {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  color: var(--class-text);
+  display: flex;
+  align-items: center;
+  transition: background-color 0.2s ease;
+}
+
+.context-menu-item:hover {
+  background-color: var(--hover-color);
+  color: #fff;
+}
+
+.context-menu-divider {
+  height: 1px;
+  background-color: var(--class-border);
+  margin: 0.25rem 0;
+  transition: background-color 0.3s ease;
+}
+
+/* Selection rectangle */
+.selection-rectangle {
+  position: absolute;
+  border: 1px dashed var(--selection-color);
+  background-color: rgba(59, 130, 246, 0.1);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Relationship Creation Mode */
+.relationship-creation-line {
+  position: absolute;
+  z-index: 100;
+  pointer-events: none;
+  stroke: var(--selection-color);
+  stroke-width: 2;
+  stroke-dasharray: 5,5;
+}
+
+/* Element hover indicators during relationship creation */
+.element-connection-point {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: var(--selection-color);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 15;
+  pointer-events: none;
+}
+
+/* Relationship type selector */
+.relationship-type-selector {
+  position: absolute;
+  background-color: var(--context-menu-bg);
+  border: 1px solid var(--context-menu-border);
+  border-radius: 0.25rem;
+  box-shadow: var(--popup-shadow);
+  padding: 0.5rem;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.relationship-type-option {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  transition: background-color 0.2s ease;
+}
+
+.relationship-type-option:hover {
+  background-color: var(--hover-color);
+  color: #fff;
+}
+
+.relationship-type-option svg {
+  margin-right: 0.5rem;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Loading states */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  color: white;
+  flex-direction: column;
+}
+
+.loading-spinner {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top: 4px solid white;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Error Messages */
+.error-message {
+  background-color: var(--error-color);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  margin: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.error-message svg {
+  margin-right: 0.5rem;
+}
+
+/* Success Messages */
+.success-message {
+  background-color: var(--success-color);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  margin: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.success-message svg {
+  margin-right: 0.5rem;
+}
+
+/* Tooltips */
+.tooltip {
+  position: absolute;
+  background-color: var(--context-menu-bg);
+  color: var(--class-text);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  z-index: 100;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: var(--popup-shadow);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Properties Panel - RESPONSIVE */
+.properties-panel {
+  width: 300px;
+  background-color: var(--uml-class-bg);
+  border-left: 1px solid var(--uml-class-border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Mobile properties panel */
+@media (max-width: 768px) {
+  .properties-panel {
+    width: 100%;
+    max-height: 40vh;
+    border-left: none;
+    border-top: 1px solid var(--uml-class-border);
+    order: 2;
+  }
+}
+
+/* Tablet properties panel */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .properties-panel {
+    width: 250px;
+    min-width: 250px;
+  }
+}
+
+.properties-section {
+  padding: 1rem;
+  border-bottom: 1px solid var(--class-border);
+  transition: border-color 0.3s ease;
+}
+
+.properties-section h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  color: var(--class-text);
+  transition: color 0.3s ease;
+}
+
+.property-group {
+  margin-bottom: 0.75rem;
+}
+
+.property-label {
+  font-size: 0.75rem;
+  color: var(--class-text);
+  margin-bottom: 0.25rem;
+  display: block;
+  opacity: 0.8;
+  transition: color 0.3s ease;
+}
+
+/* Different element styles based on type */
+.uml-element.CLASS {
+  border-color: var(--class-border);
+}
+
+.uml-element.CLASS .element-header {
+  background-color: var(--class-header-bg);
+  color: var(--class-text);
+}
+
+.uml-element.INTERFACE {
+  border-color: var(--interface-border);
+}
+
+.uml-element.INTERFACE .element-header {
+  background-color: var(--interface-header-bg);
+  color: var(--interface-text);
+}
+
+.uml-element.ABSTRACTCLASS {
+  border-color: var(--abstract-border);
+}
+
+.uml-element.ABSTRACTCLASS .element-header {
+  background-color: var(--abstract-header-bg);
+  color: var(--abstract-text);
+}
+
+.uml-element.ENUM {
+  border-color: var(--enum-border);
+}
+
+.uml-element.ENUM .element-header {
+  background-color: var(--enum-header-bg);
+  color: var(--enum-text);
+}
+
+.uml-element.RECORD {
+  border-color: var(--record-border);
+}
+
+.uml-element.RECORD .element-header {
+  background-color: var(--record-header-bg);
+  color: var(--record-text);
+}
+
+/* Form inputs for properties panel */
+.form-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--class-border);
+  border-radius: 0.25rem;
+  background-color: var(--canvas-bg);
+  color: var(--class-text);
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--selection-color);
+}
+
+.form-select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--class-border);
+  border-radius: 0.25rem;
+  background-color: var(--canvas-bg);
+  color: var(--class-text);
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--selection-color);
+}
+
+/* Animation for new elements */
+@keyframes elementFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.uml-element.new {
+  animation: elementFadeIn 0.3s ease-out;
+}
+
+/* Animation for relationship creation */
+@keyframes pathDraw {
+  0% {
+    stroke-dashoffset: 1000;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.relationship.new path {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: pathDraw 1s ease forwards;
+}

@@ -1,6 +1,7 @@
 
 import { env } from '@/config/environment'
 import { getTokens, isTokenExpired, saveTokens } from './tokenService'
+import { normalizeApiUrl } from '@/utils/urlUtils'
 
 export interface ApiResponse<T = unknown> {
   data?: T
@@ -38,7 +39,9 @@ class ApiClient {
       timeout = this.defaultTimeout,
     } = config
 
-    const url = `${this.baseUrl}${endpoint}`
+    // Normalizar endpoint para asegurar que sea compatible con API v1
+    const normalizedEndpoint = normalizeApiUrl(endpoint)
+    const url = `${this.baseUrl}${normalizedEndpoint}`
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeout)
 
@@ -183,7 +186,8 @@ class ApiClient {
         return false
       }
       
-      const response = await fetch(`${this.baseUrl}/api/v1/auth/refresh/`, {
+      const refreshEndpoint = normalizeApiUrl('/auth/refresh/')
+      const response = await fetch(`${this.baseUrl}${refreshEndpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -250,6 +254,10 @@ class ApiClient {
 
   async put<T>(endpoint: string, body?: unknown, config?: Omit<ApiRequestConfig, 'method' | 'body'>): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, { ...config, method: 'PUT', body })
+  }
+
+  async patch<T>(endpoint: string, body?: unknown, config?: Omit<ApiRequestConfig, 'method' | 'body'>): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { ...config, method: 'PATCH', body })
   }
 
   async delete<T>(endpoint: string, config?: Omit<ApiRequestConfig, 'method'>): Promise<ApiResponse<T>> {
