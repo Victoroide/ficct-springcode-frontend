@@ -40,9 +40,9 @@ class DiagramService {
   private autoSaveTimeouts: Map<string, AutoSaveTimeout> = new Map();
 
   constructor() {
-    // 🔧 CORRECCIÓN CRÍTICA: Usar nginx proxy en puerto 80, NO directamente Django 8000
-    this.baseURL = 'http://localhost'; // ✅ Nginx proxy (puerto 80)
-    console.log('🔧 DiagramService inicializado con baseURL (nginx proxy):', this.baseURL);
+    // Usar la URL de la API desde las variables de entorno
+    this.baseURL = env.apiConfig.baseUrl;
+    console.log('🔧 DiagramService inicializado con baseURL:', this.baseURL);
   }
   
   /**

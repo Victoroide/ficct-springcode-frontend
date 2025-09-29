@@ -22,13 +22,13 @@ class AnonymousApiClient {
   private retryAttempts: number
 
   constructor() {
-    // 🔧 CRITICAL FIX: Forzar uso de http://localhost para todas las API calls
-    this.baseUrl = 'http://localhost'
+    // Usar la URL de la API desde las variables de entorno
+    this.baseUrl = env.apiConfig.baseUrl
     this.defaultTimeout = env.apiConfig.timeout
     this.retryAttempts = env.apiConfig.retryAttempts
     
     if (import.meta.env.DEV) {
-      console.log('🔧 AnonymousApiClient inicializado con URL base fija:', this.baseUrl);
+      console.log('🔧 AnonymousApiClient inicializado con URL base:', this.baseUrl);
     }
   }
 
@@ -43,9 +43,9 @@ class AnonymousApiClient {
       timeout = this.defaultTimeout,
     } = config
 
-    // 🔧 CRITICAL FIX: Normalizar endpoint y usar SIEMPRE http://localhost
+    // Normalizar endpoint y usar URL base de configuración
     const normalizedEndpoint = normalizeApiUrl(endpoint)
-    const url = `http://localhost${normalizedEndpoint}`
+    const url = `${this.baseUrl}${normalizedEndpoint}`
     
     // Debug logging en desarrollo
     if (import.meta.env.DEV) {

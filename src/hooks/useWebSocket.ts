@@ -20,8 +20,9 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { anonymousSessionService } from '@/services/anonymousSessionService';
+import { env } from '@/config/environment';
 import type { Node, Edge } from 'reactflow';
-import { anonymousSessionService } from '../services/anonymousSessionService';
 
 interface WebSocketMessage {
   type: 'node_add' | 'node_update' | 'node_delete' | 'edge_add' | 'edge_update' | 'edge_delete' | 'diagram_change' | 'viewport_change' | 'cursor_move' | 'user_joined' | 'user_left' | 'title_changed' | 'chat_message' | 'typing_indicator' | 'user_presence';
@@ -83,7 +84,7 @@ export const useWebSocket = ({
     }
     
     // Clean WebSocket URL - no authentication needed for anonymous mode
-    const wsUrl = `ws://localhost:8001/ws/diagrams/${diagramId}/${currentSession.sessionId}/`;
+    const wsUrl = `${env.apiConfig.wsUrl}/ws/diagrams/${diagramId}/${currentSession.sessionId}/`;
     
     console.log('Connecting to WebSocket:', wsUrl);
     

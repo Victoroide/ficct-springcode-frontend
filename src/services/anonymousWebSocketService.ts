@@ -382,37 +382,33 @@ export class AnonymousWebSocketService {
     // Handle case where diagramId might be undefined or null
     const validDiagramId = diagramId || 'default';
     
-    // PUERTO CORRECTO: Usar SIEMPRE el puerto 8001 para WebSockets (ASGI)
-    // NO usar el puerto de desarrollo frontend (5173)
-    let baseUrl = env.apiConfig.wsUrl; // Debe ser: ws://localhost:8001
-    
-    // Si la configuración no tiene puerto 8001, forzarlo
-    if (!baseUrl.includes(':8001')) {
-      baseUrl = 'ws://localhost:8001';
-      console.log('⚠️ Forzando puerto ASGI correcto: 8001');
-    }
+    // Usar la URL WebSocket configurada en las variables de entorno
+    let wsUrl = env.apiConfig.wsUrl;
     
     // Si env URL es HTTP-based, convertir a WebSocket protocol
-    if (baseUrl.startsWith('http://')) {
-      baseUrl = baseUrl.replace('http://', 'ws://');
-    } else if (baseUrl.startsWith('https://')) {
-      baseUrl = baseUrl.replace('https://', 'wss://');
+    if (wsUrl.startsWith('http://')) {
+      wsUrl = wsUrl.replace('http://', 'ws://');
+    } else if (wsUrl.startsWith('https://')) {
+      wsUrl = wsUrl.replace('https://', 'wss://');
     }
+    
+    // Registrar la URL que se está utilizando
+    console.log('🔗 Usando URL WebSocket:', wsUrl);
     
     // CRITICAL COLLABORATION FIX:
     // 1. Correct path from '/ws/collaboration/diagrams/' to '/ws/diagrams/'
     // 2. All sessions join the SAME diagram group by diagram ID
     // 3. But maintain unique session ID for individual identification
-    const wsUrl = `${baseUrl}/ws/diagrams/${validDiagramId}/${session.sessionId}/`;
+    const fullUrl = `${wsUrl}/ws/diagrams/${validDiagramId}/${session.sessionId}/`;
     
     if (import.meta.env.DEV) {
-      console.log('🔌 WebSocket URL:', wsUrl);
+      console.log('🔌 WebSocket full URL:', fullUrl);
       console.log('🔑 Session ID:', session.sessionId);
       console.log('🏷️ Nickname:', session.nickname);
       console.log('📊 Diagram ID:', validDiagramId);
     }
     
-    return wsUrl;
+    return fullUrl;
   }
   /**
    * Send a join message to notify server about this user
