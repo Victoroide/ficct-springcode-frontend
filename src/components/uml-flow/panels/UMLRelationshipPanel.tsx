@@ -4,7 +4,8 @@
  */
 
 import React from 'react';
-import type { RelationshipType, Multiplicity, UMLEdgeData } from '../edges/UMLRelationshipEdge';
+import type { UMLRelationshipType, UMLEdgeData } from '../types';
+import type { Multiplicity } from '../edges/UMLRelationshipEdge';
 
 interface UMLRelationshipPanelProps {
   edge: {
@@ -31,7 +32,7 @@ const UMLRelationshipPanel: React.FC<UMLRelationshipPanelProps> = ({
   const handleRelationshipTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    const type = e.target.value as RelationshipType;
+    const type = e.target.value as UMLRelationshipType;
     onUpdateEdge(edge.id, {
       ...data,
       relationshipType: type

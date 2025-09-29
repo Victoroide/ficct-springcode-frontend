@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+// import { ScrollArea } from '@/components/ui/scroll-area'; // Component not available
 import { anonymousApiClient } from '@/services/anonymousApiClient';
 import { anonymousSessionService } from '@/services/anonymousSessionService';
 import { 
@@ -54,7 +54,9 @@ const BrowsePage: React.FC = () => {
       const response = await anonymousApiClient.get('/diagrams/public/');
       
       if (response.success && response.data) {
-        setDiagrams(response.data.results || response.data);
+        // Type assertion for API response
+        const data = response.data as any;
+        setDiagrams(data.results || data || []);
       } else {
         // Fallback with sample data if API fails
         setDiagrams(generateSampleDiagrams());

@@ -129,7 +129,7 @@ const UMLClassEditor: React.FC<UMLClassEditorProps> = ({ isOpen, nodeData, onClo
     { value: 'class', label: 'Class' },
     { value: 'interface', label: 'Interface' },
     { value: 'enum', label: 'Enumeration' },
-    { value: 'abstract', label: 'Abstract Class' }
+    { value: 'abstractClass', label: 'Abstract Class' }
   ];
 
   return (

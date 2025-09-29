@@ -163,7 +163,6 @@ const CodeGenerator: React.FC<CodeGeneratorProps> = ({ nodes, edges }) => {
         </Button>
       </DialogTrigger>
       
-      {/* @ts-expect-error - Component type definition issue */}
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Generador de Código SpringBoot</DialogTitle>
@@ -173,7 +172,7 @@ const CodeGenerator: React.FC<CodeGeneratorProps> = ({ nodes, edges }) => {
         </DialogHeader>
         
         {!generationResult ? (
-          <Tabs defaultValue="project">
+          <Tabs defaultValue="project" className="mt-4">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="project">Proyecto</TabsTrigger>
               <TabsTrigger value="dependencies">Dependencias</TabsTrigger>
@@ -439,7 +438,7 @@ const CodeGenerator: React.FC<CodeGeneratorProps> = ({ nodes, edges }) => {
           </div>
         )}
         
-        <DialogFooter>
+        <DialogFooter className="flex justify-end gap-2">
           {!generationResult ? (
             <>
               <Button variant="outline" onClick={() => setIsOpen(false)}>

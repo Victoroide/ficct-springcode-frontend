@@ -13,7 +13,6 @@ const LandingPage: React.FC = () => {
   const [recentDiagrams, setRecentDiagrams] = useState<Array<{id: string; name: string; updated_at: string; is_public: boolean}>>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Cargar diagramas recientes al montar el componente
   useEffect(() => {
     const fetchRecentDiagrams = async () => {
       setIsLoading(true);
@@ -22,7 +21,6 @@ const LandingPage: React.FC = () => {
         
         
         if (response.success && response.data) {
-          // Manejar diferentes formatos de respuesta y corregir errores TypeScript
           let diagrams: Array<{id: string; name: string; updated_at: string; is_public: boolean}> = [];
           const data = response.data as {results?: unknown[], items?: unknown[], diagrams?: unknown[]} | unknown[];
           
@@ -179,7 +177,7 @@ const LandingPage: React.FC = () => {
         {/* Recent Diagrams Section */}
         <div className="max-w-4xl mx-auto mb-12">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-            {isLoading ? 'Cargando diagramas recientes...' : 'Diagramas recientes'}
+            {isLoading ? 'Loading recent diagrams...' : 'Recent diagrams'}
           </h2>
           
           {isLoading ? (
@@ -224,7 +222,7 @@ const LandingPage: React.FC = () => {
             </div>
           ) : (
             <div className="text-center text-gray-500 py-8">
-              <p>No hay diagramas recientes. ¡Crea uno nuevo!</p>
+              <p>No recent diagrams found. Create one now!</p>
             </div>
           )}
         </div>
