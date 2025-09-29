@@ -46,7 +46,8 @@ const App: React.FC = () => {
           {/* Landing Page - Main entry point */}
           <Route path="/" element={<LandingPage />} />
           
-          {/* Diagram Editor - CLEAN WEBSOCKET IMPLEMENTATION */}
+          {/* Diagram Editor - CLEAN WEBSOCKET IMPLEMENTATION WITH AI ASSISTANT */}
+          {/* El componente UMLDesignerPageClean ahora utiliza internamente UMLFlowEditorWithAI */}
           <Route path="/editor/:diagramId" element={<UMLDesignerPageClean />} />
           
           {/* Legacy Complex Services (for comparison) - DISABLED */}

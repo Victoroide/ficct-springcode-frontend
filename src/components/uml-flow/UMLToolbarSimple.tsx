@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback } from 'react';
-import { MousePointer, Move, Box, Code, Database, Trash, Save, FileCode } from 'lucide-react';
+import { MousePointer, Move, Box, Code, Database, Trash, Save, FileCode, Brain } from 'lucide-react';
 import CodeGenerator from './CodeGenerator';
 import type { EditorMode } from './types';
 
@@ -19,6 +19,9 @@ interface UMLToolbarSimpleProps {
   onSave?: () => void;
   nodes?: any[];
   edges?: any[];
+  // AI Assistant props
+  onToggleAIAssistant?: () => void;
+  isAIAssistantOpen?: boolean;
 }
 
 const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
@@ -31,7 +34,9 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
   hasSelection,
   onSave,
   nodes = [],
-  edges = []
+  edges = [],
+  onToggleAIAssistant,
+  isAIAssistantOpen
 }) => {
   const handleCreateNode = (type: string) => {
     const position = { x: 100, y: 100 };
@@ -134,6 +139,16 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
             title="Save Diagram (Ctrl+S)"
           >
             <Save className="h-5 w-5" />
+          </button>
+        )}
+        
+        {onToggleAIAssistant && (
+          <button
+            className={`${isAIAssistantOpen ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}
+            onClick={onToggleAIAssistant}
+            title="AI Assistant (Ctrl+H)"
+          >
+            <Brain className="h-5 w-5" />
           </button>
         )}
       </div>

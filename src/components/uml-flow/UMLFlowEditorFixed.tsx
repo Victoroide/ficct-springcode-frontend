@@ -62,6 +62,8 @@ export interface UMLFlowEditorFixedProps {
 
   // Callback props for parent to handle changes
   onUpdateFlowData?: (nodes: Node[], edges: Edge[]) => void;
+  onNodesUpdate?: (nodes: Node[]) => void;
+  onEdgesUpdate?: (edges: Edge[]) => void;
 
   // Optional props
   diagramId?: string;
@@ -75,12 +77,23 @@ export interface UMLFlowEditorFixedProps {
   chatMessages?: Array<{id: string; content: string; sender: {id: string; nickname: string}; timestamp: Date; type: 'message' | 'system'}>;
   isConnected?: boolean;
   connectedUserCount?: number;
+  
+  // AI Assistant integration props
+  onToggleAIAssistant?: () => void;
+  isAIAssistantOpen?: boolean;
+  
+  // Collaboration props
+  isCollaborating?: boolean;
+  onStartCollaboration?: () => void;
+  onStopCollaboration?: () => void;
 }
 
 const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
   initialNodes = [],
   initialEdges = [],
   onUpdateFlowData,
+  onNodesUpdate,
+  onEdgesUpdate,
   diagramId,
   diagramName = 'Nuevo Diagrama UML',
   isNewDiagram = false,
@@ -89,7 +102,12 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
   onSendTypingIndicator,
   chatMessages = [],
   isConnected = false,
-  connectedUserCount = 1
+  connectedUserCount = 1,
+  onToggleAIAssistant,
+  isAIAssistantOpen,
+  isCollaborating = false,
+  onStartCollaboration,
+  onStopCollaboration
 }) => {
   // LOCAL React Flow state (no WebSocket services)
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
@@ -136,12 +154,17 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
       onUpdateFlowData(updatedNodes, edges);
     }
 
+    // Notify AI Assistant wrapper about nodes update
+    if (onNodesUpdate) {
+      onNodesUpdate(updatedNodes);
+    }
+
     // Reset user action flag
     setTimeout(() => {
       isUserActionRef.current = false;
     }, 100);
 
-  }, [nodes, edges, onUpdateFlowData]);
+  }, [nodes, edges, onUpdateFlowData, onNodesUpdate]);
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
     isUserActionRef.current = true;
@@ -154,12 +177,17 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
       onUpdateFlowData(nodes, updatedEdges);
     }
 
+    // Notify AI Assistant wrapper about edges update
+    if (onEdgesUpdate) {
+      onEdgesUpdate(updatedEdges);
+    }
+
     // Reset user action flag
     setTimeout(() => {
       isUserActionRef.current = false;
     }, 100);
 
-  }, [edges, nodes, onUpdateFlowData]);
+  }, [edges, nodes, onUpdateFlowData, onEdgesUpdate]);
 
   // Connection handler
   const onConnect = useCallback((params: Connection) => {
@@ -476,6 +504,8 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
             onSave={onSave}
             nodes={nodes}
             edges={edges}
+            onToggleAIAssistant={onToggleAIAssistant}
+            isAIAssistantOpen={isAIAssistantOpen}
           />
         </Panel>
         

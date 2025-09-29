@@ -21,7 +21,8 @@ import {
   SaveIcon,
   PanelRightIcon,
   UsersIcon,
-  UserMinusIcon
+  UserMinusIcon,
+  Brain
 } from 'lucide-react';
 
 interface EditorToolbarProps {
@@ -39,6 +40,8 @@ interface EditorToolbarProps {
   onStartCollaboration: () => void;
   onStopCollaboration: () => void;
   onSave?: () => void;
+  onToggleAIAssistant?: () => void;
+  isAIAssistantOpen?: boolean;
 }
 
 const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -55,7 +58,9 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   isCollaborating,
   onStartCollaboration,
   onStopCollaboration,
-  onSave
+  onSave,
+  onToggleAIAssistant,
+  isAIAssistantOpen
 }) => {
   return (
     <div className="p-2 bg-white border-b flex items-center gap-1 overflow-x-auto">
@@ -258,6 +263,24 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
               </TooltipTrigger>
               <TooltipContent>
                 <p>Save Diagram (Ctrl+S)</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          
+          {onToggleAIAssistant && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant={isAIAssistantOpen ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={onToggleAIAssistant}
+                  className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                >
+                  <Brain className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>AI Assistant (Ctrl+H)</p>
               </TooltipContent>
             </Tooltip>
           )}

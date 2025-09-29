@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Save, ChevronLeft, Edit, Check, Users, Wifi, WifiOff } from 'lucide-react';
 import { toast } from '@/components/ui/toast-service';
 
-import UMLFlowEditorFixed from '@/components/uml-flow/UMLFlowEditorFixed';
+import UMLFlowEditorWithAI from '@/components/uml-flow/UMLFlowEditorWithAI';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { diagramService } from '@/services/diagramService';
 import type { DiagramData } from '@/services/diagramService';
@@ -520,31 +520,17 @@ export function UMLDesignerPageClean({
 
       {/* Main Content - React Flow Editor */}
       <div className="flex-1">
-        <UMLFlowEditorFixed
+        <UMLFlowEditorWithAI
           initialNodes={nodes}
           initialEdges={edges}
-          onUpdateFlowData={(newNodes, newEdges) => {
-            // Handle both nodes and edges changes together
-            setNodes(newNodes);
-            setEdges(newEdges);
-            
-            // Broadcast complete diagram change
-            if (isConnected) {
-              sendMessage('diagram_change', { nodes: newNodes, edges: newEdges });
-            }
-            
-            if (onDiagramChange) {
-              onDiagramChange(newNodes, newEdges);
-            }
-          }}
+          onNodesChange={handleNodesChange}
+          onEdgesChange={handleEdgesChange}
           diagramId={diagramId}
-          diagramName={diagramName}
-          isNewDiagram={isNewDiagram}
-          onSendChatMessage={handleSendChatMessage}
-          onSendTypingIndicator={handleSendTypingIndicator}
-          chatMessages={chatMessages}
-          isConnected={isConnected}
-          connectedUserCount={connectedUserCount}
+          onSave={handleSave}
+          isCollaborating={isConnected}
+          hasUnsavedChanges={true}
+          onStartCollaboration={() => {}}
+          onStopCollaboration={() => {}}
         />
       </div>
     </div>
