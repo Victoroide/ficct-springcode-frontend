@@ -231,7 +231,7 @@ const ResponsiveAIAssistant: React.FC<ResponsiveAIAssistantProps> = (props) => {
       {deviceType === 'desktop' && <DesktopView />}
       
       {/* Debug device indicator (remove in production) */}
-      {process.env.NODE_ENV === 'development' && <DeviceIndicator />}
+      {import.meta.env.DEV && <DeviceIndicator />}
     </>
   );
 };

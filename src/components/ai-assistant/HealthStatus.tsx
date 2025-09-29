@@ -142,30 +142,19 @@ const HealthStatus: React.FC<HealthStatusProps> = ({
         </div>
 
         {/* Metrics */}
-        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
-          <div>
-            <p className="text-xs text-gray-500">Tiempo de respuesta</p>
-            <p className="text-sm font-medium text-gray-900">
-              {health.response_time.toFixed(0)}ms
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500">Tiempo activo</p>
-            <p className="text-sm font-medium text-gray-900">
-              {formatUptime(health.uptime)}
-            </p>
-          </div>
-        </div>
-
-        {/* Additional Info */}
         <div className="pt-2 border-t border-gray-100">
           <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>Modelo: {health.model_version}</span>
+            <span>Servicio: {health.service}</span>
             <div className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              <span>{new Date(health.last_check).toLocaleTimeString()}</span>
+              <span>{new Date(health.timestamp).toLocaleTimeString()}</span>
             </div>
           </div>
+          {health.error && (
+            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+              Error: {health.error}
+            </div>
+          )}
         </div>
       </div>
     </div>
