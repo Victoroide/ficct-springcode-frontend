@@ -1,428 +1,373 @@
 /**
- * UMLNodePanel.tsx
- * Panel for editing UML node properties (class, interface, etc.)
+ * UMLNodePanel.simple.tsx
+ * Simplified version of the UML Node Panel component
  */
 
 import React, { useState } from 'react';
-import { UMLVisibility, UMLNodeType, generateId } from '../types';
-import type { UMLNodeData, UMLAttribute, UMLMethod, UMLMethodParameter } from '../types';
+import { 
+  generateId, 
+  type UMLVisibility,
+  type UMLNodeData, 
+  type UMLAttribute, 
+  type UMLMethod, 
+  type UMLNodeType, 
+  type UMLParameter 
+} from '../types';
 
 interface UMLNodePanelProps {
   node: {
     id: string;
     data: UMLNodeData;
   };
-  onNodeDataUpdate: (nodeId: string, data: Partial<UMLNodeData>) => void;
+  onUpdateNode: (nodeId: string, data: Partial<UMLNodeData>) => void;
+  onClose: () => void;
 }
 
-const UMLNodePanel: React.FC<UMLNodePanelProps> = ({ node, onNodeDataUpdate }) => {
-  // State for adding new attributes and methods
-  const [newAttribute, setNewAttribute] = useState<Partial<UMLAttribute>>({
+const UMLNodePanel: React.FC<UMLNodePanelProps> = ({ node, onUpdateNode, onClose }) => {
+  // State for new attribute
+  const [newAttribute, setNewAttribute] = useState<Omit<UMLAttribute, 'id'>>({
     name: '',
     type: 'String',
-    visibility: UMLVisibility.PRIVATE,
+    visibility: 'private',
     isStatic: false,
     isFinal: false
   });
-  
-  const [newMethod, setNewMethod] = useState<Partial<UMLMethod>>({
+
+  // State for new method
+  const [newMethod, setNewMethod] = useState<Omit<UMLMethod, 'id'>>({
     name: '',
     returnType: 'void',
-    visibility: UMLVisibility.PUBLIC,
+    visibility: 'public',
     isStatic: false,
     isAbstract: false,
     parameters: []
   });
-  
-  const [newParameter, setNewParameter] = useState({
+
+  // State for new parameter
+  const [newParameter, setNewParameter] = useState<Omit<UMLParameter, 'id'>>({
     name: '',
     type: 'String'
   });
 
-  // Update node label (name)
-  const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onNodeDataUpdate(node.id, { label: e.target.value });
+  // Handle node name change
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onUpdateNode(node.id, { label: e.target.value });
   };
 
-  // Handle abstract checkbox
-  const handleAbstractChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onNodeDataUpdate(node.id, { isAbstract: e.target.checked });
+  // Toggle node type
+  const toggleNodeType = (type: UMLNodeType) => {
+    onUpdateNode(node.id, { nodeType: type });
+  };
+
+  // Toggle abstract status
+  const toggleAbstract = () => {
+    onUpdateNode(node.id, { isAbstract: !node.data.isAbstract });
   };
 
   // Add a new attribute
   const handleAddAttribute = () => {
-    if (newAttribute.name && newAttribute.type) {
-      const attribute: UMLAttribute = {
-        id: generateId(),
-        name: newAttribute.name || '',
-        type: newAttribute.type || 'String',
-        visibility: newAttribute.visibility || UMLVisibility.PRIVATE,
-        isStatic: !!newAttribute.isStatic,
-        isFinal: !!newAttribute.isFinal,
-        defaultValue: newAttribute.defaultValue
-      };
-      
-      onNodeDataUpdate(node.id, {
-        attributes: [...(node.data.attributes || []), attribute]
-      });
-      
-      // Reset form
-      setNewAttribute({
-        name: '',
-        type: 'String',
-        visibility: UMLVisibility.PRIVATE,
-        isStatic: false,
-        isFinal: false
-      });
-    }
-  };
-
-  // Remove an attribute
-  const handleRemoveAttribute = (attributeId: string) => {
-    onNodeDataUpdate(node.id, {
-      attributes: (node.data.attributes || []).filter(attr => attr.id !== attributeId)
+    if (!newAttribute.name.trim()) return;
+    
+    onUpdateNode(node.id, {
+      attributes: [
+        ...(node.data.attributes || []),
+        {
+          id: generateId(),
+          ...newAttribute
+        }
+      ]
+    });
+    
+    // Reset form
+    setNewAttribute({
+      name: '',
+      type: 'String',
+      visibility: 'private',
+      isStatic: false,
+      isFinal: false
     });
   };
 
-  // Add a parameter to the new method
-  const handleAddParameter = () => {
-    if (newParameter.name && newParameter.type) {
-      const parameter: UMLMethodParameter = {
-        id: generateId(),
-        name: newParameter.name,
-        type: newParameter.type
-      };
-      
-      setNewMethod({
-        ...newMethod,
-        parameters: [...(newMethod.parameters || []), parameter]
-      });
-      
-      // Reset form
-      setNewParameter({
-        name: '',
-        type: 'String'
-      });
-    }
-  };
-
-  // Remove a parameter from the new method
-  const handleRemoveParameter = (parameterId: string) => {
-    setNewMethod({
-      ...newMethod,
-      parameters: (newMethod.parameters || []).filter(param => param.id !== parameterId)
+  // Remove an attribute
+  const handleRemoveAttribute = (id: string) => {
+    onUpdateNode(node.id, {
+      attributes: (node.data.attributes || []).filter(attr => attr.id !== id)
     });
   };
 
   // Add a new method
   const handleAddMethod = () => {
-    if (newMethod.name) {
-      const method: UMLMethod = {
-        id: generateId(),
-        name: newMethod.name || '',
-        returnType: newMethod.returnType || 'void',
-        visibility: newMethod.visibility || UMLVisibility.PUBLIC,
-        isStatic: !!newMethod.isStatic,
-        isAbstract: !!newMethod.isAbstract,
-        parameters: newMethod.parameters || []
-      };
-      
-      onNodeDataUpdate(node.id, {
-        methods: [...(node.data.methods || []), method]
-      });
-      
-      // Reset form
-      setNewMethod({
-        name: '',
-        returnType: 'void',
-        visibility: UMLVisibility.PUBLIC,
-        isStatic: false,
-        isAbstract: false,
-        parameters: []
-      });
-    }
-  };
-
-  // Remove a method
-  const handleRemoveMethod = (methodId: string) => {
-    onNodeDataUpdate(node.id, {
-      methods: (node.data.methods || []).filter(method => method.id !== methodId)
+    if (!newMethod.name.trim()) return;
+    
+    onUpdateNode(node.id, {
+      methods: [
+        ...(node.data.methods || []),
+        {
+          id: generateId(),
+          ...newMethod,
+          parameters: []
+        }
+      ]
+    });
+    
+    // Reset form
+    setNewMethod({
+      name: '',
+      returnType: 'void',
+      visibility: 'public',
+      isStatic: false,
+      isAbstract: false,
+      parameters: []
     });
   };
 
-  return (
-    <div className="uml-node-panel p-4 overflow-y-auto max-h-[calc(100vh-200px)]">
-      <h3 className="text-lg font-medium mb-4">Class Properties</h3>
+  // Remove a method
+  const handleRemoveMethod = (id: string) => {
+    onUpdateNode(node.id, {
+      methods: (node.data.methods || []).filter(method => method.id !== id)
+    });
+  };
 
-      {/* Class/Node name */}
+  // Available visibility options
+  const visibilityOptions = [
+    { value: 'public', label: 'Public (+)' },
+    { value: 'private', label: 'Private (-)' },
+    { value: 'protected', label: 'Protected (#)' },
+    { value: 'package', label: 'Package (~)' },
+  ];
+
+  return (
+    <div className="fixed right-0 top-0 h-full w-80 bg-white shadow-lg overflow-y-auto p-4 z-50">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold">Edit {node.data.nodeType || 'Node'}</h2>
+        <button 
+          onClick={onClose}
+          className="text-gray-500 hover:text-gray-700"
+          aria-label="Close panel"
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Node Name */}
       <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Name</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Name
+        </label>
         <input
           type="text"
-          className="w-full p-2 border rounded"
           value={node.data.label || ''}
-          onChange={handleLabelChange}
+          onChange={handleNameChange}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          placeholder="Enter node name"
         />
       </div>
 
-      {/* Abstract checkbox */}
-      {node.data.nodeType === UMLNodeType.CLASS && (
-        <div className="mb-4 flex items-center">
+      {/* Node Type */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Type
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          {['class', 'interface', 'enum', 'abstractClass'].map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => toggleNodeType(type as UMLNodeType)}
+              className={`px-3 py-1.5 text-xs rounded-md ${
+                node.data.nodeType === type
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {type.charAt(0).toUpperCase() + type.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Abstract Toggle */}
+      {(node.data.nodeType === 'class' || node.data.nodeType === 'abstractClass') && (
+        <div className="flex items-center mb-4">
           <input
             type="checkbox"
-            id="isAbstract"
-            className="mr-2"
-            checked={!!node.data.isAbstract}
-            onChange={handleAbstractChange}
+            id="is-abstract"
+            checked={node.data.isAbstract || false}
+            onChange={toggleAbstract}
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
           />
-          <label htmlFor="isAbstract" className="text-sm font-medium">
-            Is Abstract
+          <label htmlFor="is-abstract" className="ml-2 block text-sm text-gray-700">
+            Abstract
           </label>
         </div>
       )}
 
-      {/* Attributes section */}
-      <div className="mb-6 border-t pt-3">
-        <h4 className="font-medium mb-2">Attributes</h4>
-        
-        {/* Existing attributes */}
-        <div className="mb-3 space-y-2">
-          {(node.data.attributes || []).map(attr => (
+      {/* Attributes Section */}
+      <div className="mb-6">
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Attributes</h3>
+        <div className="space-y-2 mb-2">
+          {(node.data.attributes || []).map((attr) => (
             <div key={attr.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-              <div className="text-sm">
-                <span className="font-mono">{attr.visibility === UMLVisibility.PRIVATE ? '-' : 
-                  attr.visibility === UMLVisibility.PUBLIC ? '+' : 
-                  attr.visibility === UMLVisibility.PROTECTED ? '#' : '~'}</span>
-                {' '}{attr.name}: {attr.type}
-                {attr.isStatic && <span className="ml-1 text-blue-600">static</span>}
-                {attr.isFinal && <span className="ml-1 text-purple-600">final</span>}
-              </div>
-              <button 
+              <span className="text-sm">
+                {attr.visibility} {attr.name}: {attr.type}
+                {attr.isStatic && ' (static)'}
+                {attr.isFinal && ' (final)'}
+              </span>
+              <button
                 onClick={() => handleRemoveAttribute(attr.id)}
                 className="text-red-500 hover:text-red-700 text-sm"
+                aria-label={`Remove attribute ${attr.name}`}
               >
-                Remove
+                ×
               </button>
             </div>
           ))}
         </div>
-
-        {/* Add new attribute */}
-        <div className="bg-gray-50 p-3 rounded">
-          <h5 className="text-sm font-medium mb-2">Add Attribute</h5>
-          
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            <input
-              type="text"
-              className="p-1 border rounded text-sm"
-              placeholder="Name"
-              value={newAttribute.name || ''}
-              onChange={(e) => setNewAttribute({...newAttribute, name: e.target.value})}
-            />
-            
-            <input
-              type="text"
-              className="p-1 border rounded text-sm"
-              placeholder="Type"
-              value={newAttribute.type || ''}
-              onChange={(e) => setNewAttribute({...newAttribute, type: e.target.value})}
-            />
-          </div>
-          
-          <div className="flex items-center mb-2">
-            <select
-              className="p-1 border rounded text-sm mr-2"
-              value={newAttribute.visibility || UMLVisibility.PRIVATE}
-              onChange={(e) => setNewAttribute({...newAttribute, visibility: e.target.value as UMLVisibility})}
-            >
-              <option value={UMLVisibility.PRIVATE}>Private (-)</option>
-              <option value={UMLVisibility.PUBLIC}>Public (+)</option>
-              <option value={UMLVisibility.PROTECTED}>Protected (#)</option>
-              <option value={UMLVisibility.PACKAGE}>Package (~)</option>
-            </select>
-            
-            <input
-              type="text"
-              className="p-1 border rounded text-sm flex-grow"
-              placeholder="Default value (optional)"
-              value={newAttribute.defaultValue || ''}
-              onChange={(e) => setNewAttribute({...newAttribute, defaultValue: e.target.value})}
-            />
-          </div>
-          
-          <div className="flex items-center mb-2">
-            <label className="flex items-center mr-4 text-sm">
-              <input
-                type="checkbox"
-                className="mr-1"
-                checked={!!newAttribute.isStatic}
-                onChange={(e) => setNewAttribute({...newAttribute, isStatic: e.target.checked})}
-              />
-              Static
-            </label>
-            
-            <label className="flex items-center text-sm">
-              <input
-                type="checkbox"
-                className="mr-1"
-                checked={!!newAttribute.isFinal}
-                onChange={(e) => setNewAttribute({...newAttribute, isFinal: e.target.checked})}
-              />
-              Final
-            </label>
-          </div>
-          
+        
+        <div className="flex space-x-2 mb-2">
+          <select
+            value={newAttribute.visibility}
+            onChange={(e) => setNewAttribute({...newAttribute, visibility: e.target.value as UMLVisibility})}
+            className="w-20 text-xs border rounded"
+          >
+            {visibilityOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={newAttribute.name}
+            onChange={(e) => setNewAttribute({...newAttribute, name: e.target.value})}
+            className="flex-1 text-sm border rounded px-2 py-1"
+            placeholder="attributeName"
+          />
+          <span>:</span>
+          <input
+            type="text"
+            value={newAttribute.type}
+            onChange={(e) => setNewAttribute({...newAttribute, type: e.target.value})}
+            className="w-20 text-sm border rounded px-2 py-1"
+            placeholder="Type"
+          />
           <button
             onClick={handleAddAttribute}
-            className="w-full bg-blue-500 text-white p-1 rounded text-sm hover:bg-blue-600"
             disabled={!newAttribute.name || !newAttribute.type}
+            className="px-2 py-1 bg-blue-500 text-white rounded disabled:bg-gray-300"
+            aria-label="Add attribute"
           >
-            Add Attribute
+            +
           </button>
+        </div>
+        <div className="flex items-center space-x-4 text-xs">
+          <label className="inline-flex items-center">
+            <input
+              type="checkbox"
+              checked={newAttribute.isStatic}
+              onChange={(e) => setNewAttribute({...newAttribute, isStatic: e.target.checked})}
+              className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <span className="ml-1">Static</span>
+          </label>
+          <label className="inline-flex items-center">
+            <input
+              type="checkbox"
+              checked={newAttribute.isFinal}
+              onChange={(e) => setNewAttribute({...newAttribute, isFinal: e.target.checked})}
+              className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <span className="ml-1">Final</span>
+          </label>
         </div>
       </div>
 
-      {/* Methods section */}
-      <div className="mb-6 border-t pt-3">
-        <h4 className="font-medium mb-2">Methods</h4>
-        
-        {/* Existing methods */}
-        <div className="mb-3 space-y-2">
-          {(node.data.methods || []).map(method => (
-            <div key={method.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-              <div className="text-sm">
-                <span className="font-mono">{method.visibility === UMLVisibility.PRIVATE ? '-' : 
-                  method.visibility === UMLVisibility.PUBLIC ? '+' : 
-                  method.visibility === UMLVisibility.PROTECTED ? '#' : '~'}</span>
-                {' '}{method.name}(
-                {method.parameters.map((p, i) => 
-                  `${p.name}: ${p.type}${i < method.parameters.length - 1 ? ', ' : ''}`
-                )}
-                ): {method.returnType}
-                {method.isStatic && <span className="ml-1 text-blue-600">static</span>}
-                {method.isAbstract && <span className="ml-1 text-purple-600">abstract</span>}
+      {/* Methods Section */}
+      <div className="mb-6">
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Methods</h3>
+        <div className="space-y-2 mb-2">
+          {(node.data.methods || []).map((method) => (
+            <div key={method.id} className="bg-gray-50 p-2 rounded">
+              <div className="flex justify-between items-center">
+                <span className="text-sm">
+                  {method.visibility} {method.name}({method.parameters.map(p => `${p.name}: ${p.type}`).join(', ')}): {method.returnType}
+                  {method.isStatic && ' (static)'}
+                  {method.isAbstract && ' (abstract)'}
+                </span>
+                <button
+                  onClick={() => handleRemoveMethod(method.id)}
+                  className="text-red-500 hover:text-red-700 text-sm"
+                  aria-label={`Remove method ${method.name}`}
+                >
+                  ×
+                </button>
               </div>
-              <button 
-                onClick={() => handleRemoveMethod(method.id)}
-                className="text-red-500 hover:text-red-700 text-sm"
-              >
-                Remove
-              </button>
             </div>
           ))}
         </div>
-
-        {/* Add new method */}
-        <div className="bg-gray-50 p-3 rounded">
-          <h5 className="text-sm font-medium mb-2">Add Method</h5>
-          
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            <input
-              type="text"
-              className="p-1 border rounded text-sm"
-              placeholder="Name"
-              value={newMethod.name || ''}
-              onChange={(e) => setNewMethod({...newMethod, name: e.target.value})}
-            />
-            
-            <input
-              type="text"
-              className="p-1 border rounded text-sm"
-              placeholder="Return Type"
-              value={newMethod.returnType || ''}
-              onChange={(e) => setNewMethod({...newMethod, returnType: e.target.value})}
-            />
-          </div>
-          
-          <div className="flex items-center mb-2">
+        
+        <div className="space-y-2">
+          <div className="flex space-x-2">
             <select
-              className="p-1 border rounded text-sm"
-              value={newMethod.visibility || UMLVisibility.PUBLIC}
+              value={newMethod.visibility}
               onChange={(e) => setNewMethod({...newMethod, visibility: e.target.value as UMLVisibility})}
+              className="w-20 text-xs border rounded"
             >
-              <option value={UMLVisibility.PUBLIC}>Public (+)</option>
-              <option value={UMLVisibility.PRIVATE}>Private (-)</option>
-              <option value={UMLVisibility.PROTECTED}>Protected (#)</option>
-              <option value={UMLVisibility.PACKAGE}>Package (~)</option>
-            </select>
-          </div>
-          
-          <div className="flex items-center mb-2">
-            <label className="flex items-center mr-4 text-sm">
-              <input
-                type="checkbox"
-                className="mr-1"
-                checked={!!newMethod.isStatic}
-                onChange={(e) => setNewMethod({...newMethod, isStatic: e.target.checked})}
-              />
-              Static
-            </label>
-            
-            <label className="flex items-center text-sm">
-              <input
-                type="checkbox"
-                className="mr-1"
-                checked={!!newMethod.isAbstract}
-                onChange={(e) => setNewMethod({...newMethod, isAbstract: e.target.checked})}
-              />
-              Abstract
-            </label>
-          </div>
-          
-          {/* Parameters section */}
-          <div className="mb-2">
-            <h6 className="text-xs font-medium mb-1">Parameters</h6>
-            
-            {/* Existing parameters */}
-            <div className="mb-2 space-y-1">
-              {(newMethod.parameters || []).map(param => (
-                <div key={param.id} className="flex items-center justify-between bg-gray-100 p-1 rounded text-xs">
-                  <div>{param.name}: {param.type}</div>
-                  <button 
-                    onClick={() => handleRemoveParameter(param.id)}
-                    className="text-red-500 hover:text-red-700 text-xs"
-                  >
-                    x
-                  </button>
-                </div>
+              {visibilityOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
               ))}
-            </div>
-            
-            {/* Add parameter */}
-            <div className="flex mb-2">
-              <input
-                type="text"
-                className="p-1 border rounded text-sm mr-1 w-2/5"
-                placeholder="Param name"
-                value={newParameter.name}
-                onChange={(e) => setNewParameter({...newParameter, name: e.target.value})}
-              />
-              
-              <input
-                type="text"
-                className="p-1 border rounded text-sm mr-1 w-2/5"
-                placeholder="Type"
-                value={newParameter.type}
-                onChange={(e) => setNewParameter({...newParameter, type: e.target.value})}
-              />
-              
-              <button
-                onClick={handleAddParameter}
-                className="bg-gray-300 p-1 rounded text-xs flex-grow hover:bg-gray-400"
-                disabled={!newParameter.name || !newParameter.type}
-              >
-                Add
-              </button>
-            </div>
+            </select>
+            <input
+              type="text"
+              value={newMethod.name}
+              onChange={(e) => setNewMethod({...newMethod, name: e.target.value})}
+              className="flex-1 text-sm border rounded px-2 py-1"
+              placeholder="methodName"
+            />
+            <span>:</span>
+            <input
+              type="text"
+              value={newMethod.returnType}
+              onChange={(e) => setNewMethod({...newMethod, returnType: e.target.value})}
+              className="w-16 text-sm border rounded px-2 py-1"
+              placeholder="void"
+            />
+            <button
+              onClick={handleAddMethod}
+              disabled={!newMethod.name}
+              className="px-2 py-1 bg-blue-500 text-white rounded disabled:bg-gray-300"
+              aria-label="Add method"
+            >
+              +
+            </button>
           </div>
-          
-          <button
-            onClick={handleAddMethod}
-            className="w-full bg-blue-500 text-white p-1 rounded text-sm hover:bg-blue-600"
-            disabled={!newMethod.name}
-          >
-            Add Method
-          </button>
+
+          {/* Method Options */}
+          <div className="flex items-center space-x-4 text-xs pl-2">
+            <label className="inline-flex items-center">
+              <input
+                type="checkbox"
+                checked={newMethod.isStatic}
+                onChange={(e) => setNewMethod({...newMethod, isStatic: e.target.checked})}
+                className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <span className="ml-1">Static</span>
+            </label>
+            {(node.data.nodeType === 'abstractClass' || node.data.nodeType === 'interface') && (
+              <label className="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  checked={newMethod.isAbstract}
+                  onChange={(e) => setNewMethod({...newMethod, isAbstract: e.target.checked})}
+                  className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span className="ml-1">Abstract</span>
+              </label>
+            )}
+          </div>
         </div>
       </div>
     </div>

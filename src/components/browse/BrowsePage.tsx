@@ -113,7 +113,7 @@ const BrowsePage: React.FC = () => {
   };
 
   const filterAndSortDiagrams = () => {
-    let filtered = diagrams.filter(diagram =>
+    const filtered = diagrams.filter(diagram =>
       diagram.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (diagram.description && diagram.description.toLowerCase().includes(searchQuery.toLowerCase()))
     );

@@ -11,12 +11,14 @@ interface UMLRelationshipPanelProps {
     id: string;
     data?: UMLEdgeData;
   };
-  onEdgeDataUpdate: (edgeId: string, data: UMLEdgeData) => void;
+  onUpdateEdge: (edgeId: string, data: Partial<UMLEdgeData>) => void;
+  onClose: () => void;
 }
 
 const UMLRelationshipPanel: React.FC<UMLRelationshipPanelProps> = ({ 
   edge,
-  onEdgeDataUpdate 
+  onUpdateEdge,
+  onClose 
 }) => {
   // Default data if none exists
   const data: UMLEdgeData = edge.data || {
@@ -27,31 +29,39 @@ const UMLRelationshipPanel: React.FC<UMLRelationshipPanelProps> = ({
   };
 
   const handleRelationshipTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     const type = e.target.value as RelationshipType;
-    onEdgeDataUpdate(edge.id, {
+    onUpdateEdge(edge.id, {
       ...data,
       relationshipType: type
     });
   };
 
   const handleSourceMultiplicityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     const multiplicity = e.target.value as Multiplicity;
-    onEdgeDataUpdate(edge.id, {
+    onUpdateEdge(edge.id, {
       ...data,
       sourceMultiplicity: multiplicity
     });
   };
 
   const handleTargetMultiplicityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     const multiplicity = e.target.value as Multiplicity;
-    onEdgeDataUpdate(edge.id, {
+    onUpdateEdge(edge.id, {
       ...data,
       targetMultiplicity: multiplicity
     });
   };
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onEdgeDataUpdate(edge.id, {
+    e.preventDefault();
+    e.stopPropagation();
+    onUpdateEdge(edge.id, {
       ...data,
       label: e.target.value
     });

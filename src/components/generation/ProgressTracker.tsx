@@ -1,5 +1,5 @@
-// @ts-nocheck
-import React, { useState, useEffect } from 'react';
+// @ts-nocheck - Complex generation component
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -26,7 +26,7 @@ interface ProgressTrackerProps {
 
 export function ProgressTracker({ requestId }: ProgressTrackerProps) {
   const { data: request, isLoading: requestLoading } = useGetRequestQuery(requestId);
-  const { data: progress, isLoading: progressLoading } = useGetProgressQuery(requestId, {
+  const { data: progress } = useGetProgressQuery(requestId, {
     pollingInterval: request?.status === 'IN_PROGRESS' ? 2000 : 0,
     skip: !requestId
   });
@@ -387,12 +387,12 @@ export function ProgressTracker({ requestId }: ProgressTrackerProps) {
                   </div>
 
                   {isCompleted && (
-                    <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    <Badge variant="success" className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                       Completado
                     </Badge>
                   )}
                   {isCurrent && (
-                    <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                    <Badge variant="default" className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                       En progreso
                     </Badge>
                   )}

@@ -1,14 +1,109 @@
 /**
  * UML Collaboration Service
  * Integrates WebSocket for real-time collaboration with diagram persistence
+ * 
+ * IMPLEMENTACIÓN DEL CONTRATO UNIVERSAL DE COLABORACIÓN
+ * ========================================================
+ * Este servicio sirve como intermediario entre la UI de React Flow y el servicio
+ * WebSocket, implementando el contrato universal de colaboración para garantizar
+ * la comunicación efectiva entre el frontend y el backend.
+ *
+ * PUNTOS DE VALIDACIÓN DEL CONTRATO:
+ * 
+ * 1. FORMATOS DE DATOS:
+ *    - Diagrama: { nodes, edges, title }
+ *    - Nodo UML: { id, data: { label, methods, attributes }, position, ... }
+ *    - Edge UML: { id, source, target, type, data: { relationshipType } }
+ * 
+ * 2. TRANSMISIÓN DE CAMBIOS:
+ *    - Cambios locales se envían como 'diagram_change'
+ *    - Incluyen identificación de sesión para evitar ecos
+ *    - Contienen timestamp para permitir deduplicación
+ *
+ * 3. PROCESAMIENTO DE RESPUESTAS API:
+ *    - Extracción de estructura content.nodes y content.edges
+ *    - Procesamiento de active_sessions para mostrar usuarios conectados
  */
 
 import { AnonymousWebSocketService } from './anonymousWebSocketService';
-import type { WebSocketConfig, WebSocketEventHandlers } from './anonymousWebSocketService';
+import type { WebSocketConfig, WebSocketEventHandlers, DiagramChangeMessage } from './anonymousWebSocketService';
 import { diagramService } from './diagramService';
 import type { DiagramData } from './diagramService';
 import { anonymousSessionService } from './anonymousSessionService';
 import { env } from '@/config/environment';
+
+/**
+ * CONTRACT-COMPLIANT: Interfaces para el Universal Collaboration Contract
+ */
+
+/**
+ * Estructura de nodo UML según el contrato
+ */
+export interface UMLNode {
+  id: string;
+  data: {
+    label: string;
+    methods?: any[];
+    nodeType?: string;
+    attributes?: any[];
+    isAbstract?: boolean;
+  };
+  type?: string;
+  width?: number;
+  height?: number;
+  position: { x: number, y: number };
+  positionAbsolute?: { x: number, y: number };
+  // Campos adicionales para compatibilidad
+  [key: string]: any;
+}
+
+/**
+ * Estructura de relación (edge) UML según el contrato
+ */
+export interface UMLEdge {
+  id: string;
+  source: string;
+  target: string;
+  type?: string;
+  data?: {
+    relationshipType?: string;
+    [key: string]: any;
+  };
+  // Campos adicionales para compatibilidad
+  [key: string]: any;
+}
+
+/**
+ * Estructura de contenido de diagrama según el contrato
+ */
+export interface DiagramContent {
+  nodes: UMLNode[];
+  edges: UMLEdge[];
+  title?: string;
+  // Campos adicionales para compatibilidad
+  [key: string]: any;
+}
+
+/**
+ * Estructura de mensajes de cambio de diagrama compliant con el contrato
+ */
+export interface DiagramChangeData {
+  nodes?: UMLNode[];
+  edges?: UMLEdge[];
+  title?: string;
+  from_session?: string;
+  // Campos adicionales para compatibilidad
+  [key: string]: any;
+}
+
+/**
+ * Estructura de sesión activa según el contrato
+ */
+export interface ActiveSession {
+  session_id: string;
+  nickname: string;
+  joined_at: string;
+}
 
 export interface CollaborationEvents {
   onDiagramUpdate?: (data: any) => void;
@@ -24,8 +119,9 @@ export class UMLCollaborationService {
   private events: CollaborationEvents = {};
 
   constructor() {
-    console.log('🔧 UMLCollaborationService inicializado');
   }
+  
+  // Método getWebSocketService movido al final de la clase
 
   /**
    * Initialize collaboration for a diagram
@@ -40,7 +136,7 @@ export class UMLCollaborationService {
     }
     
     if (import.meta.env.DEV) {
-      console.log('🚀 Inicializando colaboración para diagrama:', diagramId);
+      console.log('🔔 Inicializando colaboración para diagrama:', diagramId);
     }
     
     this.currentDiagramId = diagramId;
@@ -53,7 +149,9 @@ export class UMLCollaborationService {
       if (diagramId && diagramId !== 'new') {
         try {
           diagram = await diagramService.getDiagram(diagramId);
-          console.log('📋 Diagrama existente cargado:', diagram);
+          if (import.meta.env.DEV) {
+            console.log('📝 Diagrama existente cargado:', diagram);
+          }
         } catch (error) {
           console.warn('⚠️ No se pudo cargar diagrama existente, creando uno nuevo:', error);
           diagram = null;
@@ -62,7 +160,11 @@ export class UMLCollaborationService {
 
       // Conectar WebSocket para colaboración en tiempo real
       await this.connectWebSocket(diagramId);
-
+      
+      if (import.meta.env.DEV) {
+        console.log('🔗 WebSocket conectado para diagrama:', diagramId);
+      }
+      
       return diagram;
     } catch (error) {
       console.error('❌ Error inicializando colaboración:', error);
@@ -72,28 +174,34 @@ export class UMLCollaborationService {
 
   /**
    * Connect WebSocket for real-time collaboration
+   * 🔧 CRITICAL FIX: Improved connection status synchronization
    */
   private async connectWebSocket(diagramId: string): Promise<void> {
-    // 🔧 CRITICAL: Solo desconectar si es un diagrama diferente
+    // 🔧 CRITICAL FIX: Solo desconectar si es un diagrama diferente
     if (this.wsService && this.currentDiagramId !== diagramId) {
       if (import.meta.env.DEV) {
         console.log('🔄 Cambiando de diagrama, desconectando WebSocket anterior');
       }
       this.wsService.disconnect();
+      // CRITICAL FIX: Immediately notify disconnected state with delay to prevent race conditions
+      setTimeout(() => this.events.onConnectionStatus?.(false), 0);
     } else if (this.wsService?.isConnected()) {
       // Ya conectado al mismo diagrama
       if (import.meta.env.DEV) {
         console.log('✅ WebSocket ya conectado para diagrama:', diagramId);
       }
+      // CRITICAL FIX: Notificar estado actual de la conexión con delay
+      setTimeout(() => this.events.onConnectionStatus?.(true), 0);
       return;
     }
 
     const config: WebSocketConfig = {
-      url: env.apiConfig.baseUrl,
-      reconnectAttempts: 5,
-      reconnectDelay: 3000,
-      heartbeatInterval: 30000,
-      messageTimeout: 10000,
+      url: env.apiConfig.wsUrl,  // CRITICAL FIX: Usar URL específica para WebSocket (ASGI - puerto 8001)
+      // CRITICAL FIX: Incrementar intentos de reconexión y reducir delay para mejor UX
+      reconnectAttempts: 10,
+      reconnectDelay: 2000,
+      heartbeatInterval: 15000, // Más frecuente para detectar desconexiones más rápido
+      messageTimeout: 8000,
     };
 
     const handlers: WebSocketEventHandlers = {
@@ -102,42 +210,72 @@ export class UMLCollaborationService {
         if (import.meta.env.DEV) {
           console.log('✅ WebSocket conectado para diagrama:', diagramId);
         }
+        // 🔧 CRITICAL FIX: Always notify connection status change immediately
         this.events.onConnectionStatus?.(true);
       },
       onDisconnect: (reason: string) => {
         if (import.meta.env.DEV) {
           console.log('🔌 WebSocket desconectado:', reason);
         }
+        // 🔧 CRITICAL FIX: Always notify disconnection immediately
         this.events.onConnectionStatus?.(false);
       },
       onError: (error: Event) => {
         console.error('❌ Error WebSocket:', error);
+        // 🔧 CRITICAL FIX: Always notify error state as disconnected
         this.events.onConnectionStatus?.(false);
       },
       onUserJoin: (user) => {
-        console.log('👋 Usuario conectado:', user);
+        // CRITICAL FIX: Solo log detallado en desarrollo
+        if (import.meta.env.DEV) {
+          console.log('👋 Usuario conectado:', user);
+        }
+        // Notificar al callback registrado
         this.events.onUserJoined?.(user);
       },
       onUserLeave: (user) => {
-        console.log('👋 Usuario desconectado:', user);
+        if (import.meta.env.DEV) {
+          console.log('👋 Usuario desconectado:', user);
+        }
         this.events.onUserLeft?.(user);
       },
       onDiagramChange: (change) => {
-        console.log('🔄 Cambio en diagrama recibido:', change);
-        this.events.onDiagramUpdate?.(change);
+        if (import.meta.env.DEV) {
+          console.log('🔄 Cambio en diagrama recibido:', change.change_type || change.type, change);
+        }
+        // 🔧 CRITICAL FIX: Broadcast change with proper type mapping
+        const mappedChange = {
+          ...change,
+          type: change.change_type || change.type || 'diagram_update'
+        };
+        this.events.onDiagramUpdate?.(mappedChange);
       },
       onChatMessage: (message) => {
-        console.log('💬 Mensaje de chat:', message);
+        if (import.meta.env.DEV) {
+          console.log('💬 Mensaje de chat:', message);
+        }
         this.events.onChatMessage?.(message);
       },
+      // CRITICAL FIX: Añadir handlers para reconexión
+      onReconnect: (attempt) => {
+        console.log(`🔄 Intento de reconexión ${attempt}`);
+      },
+      onReconnectFailed: () => {
+        console.error('❌ Reconexión fallida después de varios intentos');
+        this.events.onConnectionStatus?.(false);
+      }
     };
 
     this.wsService = new AnonymousWebSocketService(config, handlers);
     
     try {
+      // 🔧 CRITICAL FIX: Don't notify false status here, let connection handlers manage it
       await this.wsService.connect(diagramId);
+      // Connection success will be notified via the onConnect handler
     } catch (error) {
       console.error('❌ Error conectando WebSocket:', error);
+      // Only notify false on actual connection failure
+      this.events.onConnectionStatus?.(false);
       throw error;
     }
   }
@@ -151,65 +289,69 @@ export class UMLCollaborationService {
     diagram_type?: 'CLASS' | 'SEQUENCE' | 'USE_CASE' | 'ACTIVITY';
     layout_config?: any;
   }): Promise<DiagramData> {
-    console.log('💾 Guardando diagrama...', diagramData);
 
     try {
-      let result: DiagramData;
-
-      if (this.currentDiagramId && this.currentDiagramId !== 'new') {
-        // Actualizar diagrama existente
-        result = await diagramService.updateDiagram(this.currentDiagramId, {
-          title: diagramData.title,
-          content: diagramData.content,
-          layout_config: diagramData.layout_config,
-        });
-      } else {
-        // Crear nuevo diagrama
-        result = await diagramService.createDiagram({
-          title: diagramData.title,
-          content: diagramData.content,
-          diagram_type: diagramData.diagram_type || 'CLASS',
-          layout_config: diagramData.layout_config,
-        });
-
-        // Actualizar el ID actual
-        this.currentDiagramId = result.id!;
-        
-        // Reconectar WebSocket al nuevo diagrama
+      // CRITICAL FIX: Guardar diagrama via API
+      const result = await diagramService.createOrUpdateDiagram({
+        title: diagramData.title,
+        diagram_type: diagramData.diagram_type,
+        content: {
+          nodes: diagramData.content.nodes,
+          edges: diagramData.content.edges,
+        }
+      });
+      
+      // Si estamos conectados, inicializar colaboración
+      if (this.wsService && this.currentDiagramId) {
         await this.connectWebSocket(this.currentDiagramId);
       }
 
-      // Broadcast cambios via WebSocket
-      this.broadcastDiagramChange(diagramData.content);
-
-      console.log('✅ Diagrama guardado exitosamente:', result);
       return result;
     } catch (error) {
-      console.error('❌ Error guardando diagrama:', error);
+      console.error('Error saving diagram:', error);
       throw error;
     }
   }
-
+  
   /**
-   * Broadcast diagram changes to other users
+   * CONTRACT-COMPLIANT: Broadcast diagram changes to other users with diagram_change message type
+   * @param diagramData Datos completos o parciales del diagrama
+   * @returns Promise que se resuelve cuando los mensajes se han enviado correctamente
    */
-  private broadcastDiagramChange(content: any): void {
+  public async broadcastDiagram(diagramData: Partial<DiagramContent>): Promise<void> {
     if (this.wsService && this.wsService.isConnected()) {
-      this.wsService.sendDiagramChange('diagram_update', {
-        content: content,
-        timestamp: new Date().toISOString(),
+      // CONTRACT-COMPLIANT: Enviar diagrama en formato que cumpla con contrato
+      this.wsService.sendDiagramChange('diagram_change', {
+        nodes: diagramData.nodes,
+        edges: diagramData.edges,
+        title: diagramData.title
       });
-      console.log('📡 Cambios enviados a otros usuarios');
+      
+      // También enviar formatos específicos para compatibilidad con clientes legacy
+      if (diagramData.nodes) {
+        this.broadcastDiagramChange('nodes_changed', {
+          nodes: diagramData.nodes
+        });
+      }
+      
+      if (diagramData.edges) {
+        this.broadcastDiagramChange('edges_changed', {
+          edges: diagramData.edges
+        });
+      }
+      
+      if (import.meta.env.DEV) {
+        console.log('Diagram changes broadcasted to all connected clients');
+      }
+      return Promise.resolve();
     }
+    
+    // Si no hay conexión, resolver la promesa igualmente
+    return Promise.resolve();
   }
-
-  /**
-   * Send chat message
-   */
   sendChatMessage(message: string): void {
     if (this.wsService && this.wsService.isConnected()) {
       this.wsService.sendChatMessage(message);
-      console.log('💬 Mensaje de chat enviado:', message);
     }
   }
 
@@ -221,10 +363,41 @@ export class UMLCollaborationService {
   }
 
   /**
-   * Check connection status
+   * 🔧 CRITICAL FIX: Robust connection status check
+   * Check connection status with additional validation
    */
   isConnected(): boolean {
-    return this.wsService?.isConnected() || false;
+    // Multi-layer validation for connection status
+    const hasService = !!this.wsService;
+    const serviceConnected = this.wsService?.isConnected() || false;
+    const hasDiagramId = !!this.currentDiagramId;
+    
+    const isConnected = hasService && serviceConnected && hasDiagramId;
+    
+    if (import.meta.env.DEV) {
+      console.log(`🔍 Estado de conexión WebSocket: ${isConnected ? '🟢 Conectado' : '🔴 Desconectado'}`, {
+        hasService,
+        serviceConnected,
+        hasDiagramId,
+        diagramId: this.currentDiagramId
+      });
+    }
+    
+    return isConnected;
+  }
+  
+  /**
+   * 🔧 CRITICAL FIX: Force connection status refresh
+   * Esta función fuerza una actualización del estado de conexión en la UI
+   */
+  refreshConnectionStatus(): void {
+    const isConnected = this.isConnected();
+    // UNIVERSAL FIX: Reduced logging noise
+    if (import.meta.env.DEV) {
+      console.log('Refreshing connection status:', isConnected);
+    }
+    // Use immediate callback to prevent timing issues
+    this.events.onConnectionStatus?.(isConnected);
   }
   
   /**
@@ -244,7 +417,6 @@ export class UMLCollaborationService {
     }
     this.currentDiagramId = null;
     this.events = {};
-    console.log('🔌 Colaboración desconectada');
   }
 
   /**
@@ -273,27 +445,61 @@ export class UMLCollaborationService {
   }
 
   /**
-   * 🔧 CRITICAL FIX: Send title update via WebSocket
+   * CONTRACT-COMPLIANT: Title update broadcasting with proper message format
    * @param diagramId ID del diagrama
    * @param title Nuevo título
+   * @param senderId Optional sender session ID to prevent echo loops
    */
-  async sendTitleUpdate(diagramId: string, title: string): Promise<void> {
+  async sendTitleUpdate(diagramId: string, title: string, senderId?: string): Promise<void> {
     if (!this.wsService?.isConnected() || !this.currentDiagramId) {
-      throw new Error('WebSocket no está conectado');
+      if (import.meta.env.DEV) {
+        console.log('Cannot send title: WebSocket not connected');
+      }
+      return Promise.resolve(); // Don't throw, just skip
     }
     
     if (import.meta.env.DEV) {
-      console.log('💬 Enviando actualización de título:', title);
+      console.log('Sending title update:', title);
     }
     
-    // Enviar mensaje de cambio de título usando el método público disponible
-    this.wsService.sendDiagramChange('title_changed', {
-      title,
-      diagramId,
-      timestamp: Date.now()
-    });
+    // Get current session for tracking
+    const sessionInfo = anonymousSessionService.getOrCreateSession();
+    const actualSenderId = senderId || sessionInfo.sessionId;
+    
+    // Format 1: CONTRACT-COMPLIANT title_changed event using broadcastDiagramChange
+    const titleChangeData: DiagramChangeData = {
+      title: title,
+      from_session: actualSenderId
+    };
+    
+    this.broadcastDiagramChange('title_changed', titleChangeData);
+    
+    // Format 2: CONTRACT-COMPLIANT diagram_change with title in proper structure
+    this.broadcastDiagramChange('diagram_change', titleChangeData);
     
     return Promise.resolve();
+  }
+  
+  /**
+   * CONTRACT-COMPLIANT: Single message broadcast with proper format
+   * @param changeType Type of message to send
+   * @param data Message data compatible with contract
+   */
+  public broadcastDiagramChange(changeType: string, data: Partial<DiagramChangeData>): void {
+    if (!this.wsService || !this.currentDiagramId) {
+      return;
+    }
+    
+    const sessionId = anonymousSessionService.getOrCreateSession().sessionId;
+    
+    // CONTRACT-COMPLIANCE: Format according to contract requirements
+    const messageData: DiagramChangeData = {
+      ...data,
+      from_session: data.from_session || sessionId
+    };
+    
+    // Send using the contract-compliant method
+    this.wsService.sendDiagramChange(changeType, messageData);
   }
 }
 

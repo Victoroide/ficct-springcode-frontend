@@ -1,4 +1,3 @@
-// @ts-nocheck - Allow compilation
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 

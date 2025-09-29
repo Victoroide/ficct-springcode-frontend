@@ -189,7 +189,7 @@ export interface UMLDiagram {
   };
   elements: UMLElement[];
   relationships: UMLRelationship[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   version: number;
   status: ProjectStatus;
   createdAt: string;
@@ -218,7 +218,7 @@ export interface Project {
   visibility: ProjectVisibility;
   owner: number;
   members: ProjectMember[];
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
   statistics: {
     totalDiagrams: number;
     totalElements: number;
@@ -358,7 +358,7 @@ export interface ValidationResult {
 export interface ExportDataResponse {
   format: 'plantuml' | 'json' | 'xml';
   content: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 // API Response Wrappers
@@ -377,6 +377,6 @@ export interface APIResponse<T> {
 
 export interface ErrorResponse {
   error: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   timestamp: string;
 }

@@ -1,9 +1,11 @@
 import React, { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LandingPage from './components/landing/LandingPage'
-import DiagramEditor from './components/editor/DiagramEditor'
+// import DiagramEditor from './components/editor/DiagramEditor' // Removed - broken
 import BrowsePage from './components/browse/BrowsePage'
-import { CodeGeneratorPage } from './pages/CodeGeneratorPage'
+// import { UMLDesignerPageNew } from './pages/UMLDesignerPageNew' // Removed - using only UMLDesignerPageClean
+import { UMLDesignerPageClean } from './pages/UMLDesignerPageClean'
+import WebSocketTest from './components/test/WebSocketTest'
 import { ToastContainer } from './components/ui/toast'
 import { ErrorBoundary } from './components/ui/error-boundary'
 import { setupGlobalErrorHandlers } from './services/errorService'
@@ -44,15 +46,22 @@ const App: React.FC = () => {
           {/* Landing Page - Main entry point */}
           <Route path="/" element={<LandingPage />} />
           
-          {/* Diagram Editor - Core functionality */}
-          <Route path="/editor/:diagramId" element={<DiagramEditor />} />
+          {/* Diagram Editor - CLEAN WEBSOCKET IMPLEMENTATION */}
+          <Route path="/editor/:diagramId" element={<UMLDesignerPageClean />} />
+          
+          {/* Legacy Complex Services (for comparison) - DISABLED */}
+          {/* <Route path="/legacy/:diagramId" element={<DiagramEditor />} /> */}
+          
+          {/* Alternative Clean Implementation - Same as main */}
+          {/* <Route path="/clean/:diagramId" element={<UMLDesignerPageClean />} /> */}
+          
+          {/* WebSocket Test - Minimal Implementation */}
+          {/* <Route path="/test/:diagramId" element={<WebSocketTest diagramId="test-diagram-123" />} /> */}
           
           {/* Browse Public Diagrams */}
           <Route path="/browse" element={<BrowsePage />} />
           
-          {/* Code Generator - Standalone for generated projects */}
-          <Route path="/code-generator" element={<CodeGeneratorPage />} />
-          <Route path="/code-generator/:requestId" element={<CodeGeneratorPage />} />
+          {/* Code Generator - Now integrated into UML Editor */}
           
           {/* Fallback redirect */}
           <Route path="*" element={<Navigate to="/" replace />} />

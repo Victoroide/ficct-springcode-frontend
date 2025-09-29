@@ -12,10 +12,11 @@ interface UMLEnumPanelProps {
     id: string;
     data: UMLNodeData;
   };
-  onNodeDataUpdate: (nodeId: string, data: Partial<UMLNodeData>) => void;
+  onUpdateNode: (nodeId: string, data: Partial<UMLNodeData>) => void;
+  onClose: () => void;
 }
 
-const UMLEnumPanel: React.FC<UMLEnumPanelProps> = ({ node, onNodeDataUpdate }) => {
+const UMLEnumPanel: React.FC<UMLEnumPanelProps> = ({ node, onUpdateNode, onClose }) => {
   // State for adding new enum values
   const [newEnumValue, setNewEnumValue] = useState<Partial<UMLEnumValue>>({
     name: '',
@@ -24,7 +25,7 @@ const UMLEnumPanel: React.FC<UMLEnumPanelProps> = ({ node, onNodeDataUpdate }) =
 
   // Update enum name (label)
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onNodeDataUpdate(node.id, { label: e.target.value });
+    onUpdateNode(node.id, { label: e.target.value });
   };
 
   // Add a new enum value
@@ -36,7 +37,7 @@ const UMLEnumPanel: React.FC<UMLEnumPanelProps> = ({ node, onNodeDataUpdate }) =
         value: newEnumValue.value,
       };
 
-      onNodeDataUpdate(node.id, {
+      onUpdateNode(node.id, {
         enumValues: [...(node.data.enumValues || []), enumValue],
       });
 
@@ -50,7 +51,7 @@ const UMLEnumPanel: React.FC<UMLEnumPanelProps> = ({ node, onNodeDataUpdate }) =
 
   // Remove an enum value
   const handleRemoveEnumValue = (enumValueId: string) => {
-    onNodeDataUpdate(node.id, {
+    onUpdateNode(node.id, {
       enumValues: (node.data.enumValues || []).filter(
         (value) => value.id !== enumValueId
       ),
@@ -65,7 +66,7 @@ const UMLEnumPanel: React.FC<UMLEnumPanelProps> = ({ node, onNodeDataUpdate }) =
         newEnumValues[index],
         newEnumValues[index - 1],
       ];
-      onNodeDataUpdate(node.id, { enumValues: newEnumValues });
+      onUpdateNode(node.id, { enumValues: newEnumValues });
     }
   };
 
@@ -80,7 +81,7 @@ const UMLEnumPanel: React.FC<UMLEnumPanelProps> = ({ node, onNodeDataUpdate }) =
         newEnumValues[index + 1],
         newEnumValues[index],
       ];
-      onNodeDataUpdate(node.id, { enumValues: newEnumValues });
+      onUpdateNode(node.id, { enumValues: newEnumValues });
     }
   };
 

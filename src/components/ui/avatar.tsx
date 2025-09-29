@@ -18,7 +18,9 @@ export const Avatar = forwardRef<HTMLDivElement, AvatarProps>(({ className, chil
 });
 Avatar.displayName = 'Avatar';
 
-export interface AvatarFallbackProps extends React.HTMLAttributes<HTMLSpanElement> {}
+export interface AvatarFallbackProps extends React.HTMLAttributes<HTMLSpanElement> {
+  className?: string;
+}
 export const AvatarFallback: React.FC<AvatarFallbackProps> = ({ children, className, ...props }) => (
   <span className={cn('text-xs font-medium', className)} {...props}>
     {children}

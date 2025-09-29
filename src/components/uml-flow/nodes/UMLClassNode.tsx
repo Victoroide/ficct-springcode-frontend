@@ -6,31 +6,43 @@
 import React, { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import type { NodeProps } from 'reactflow';
-import { UMLVisibility } from '../types';
-import type { UMLNodeData } from '../types';
+import type { UMLNodeData, UMLVisibility } from '../types';
 
 // Helper function to render visibility symbol
 const getVisibilitySymbol = (visibility: UMLVisibility): string => {
   switch (visibility) {
-    case UMLVisibility.PUBLIC:
+    case 'public':
       return '+';
-    case UMLVisibility.PRIVATE:
+    case 'private':
       return '-';
-    case UMLVisibility.PROTECTED:
+    case 'protected':
       return '#';
-    case UMLVisibility.PACKAGE:
+    case 'package':
       return '~';
     default:
       return '+';
   }
 };
 
-const UMLClassNode: React.FC<NodeProps<UMLNodeData>> = ({ data, isConnectable, selected }) => {
+interface UMLClassNodeProps extends NodeProps<UMLNodeData> {
+  onEdit?: (nodeData: UMLNodeData) => void;
+}
+
+const UMLClassNode: React.FC<UMLClassNodeProps> = ({ data, isConnectable, selected, onEdit }) => {
   const attributes = data.attributes || [];
   const methods = data.methods || [];
 
+  const handleDoubleClick = () => {
+    if (onEdit) {
+      onEdit(data);
+    }
+  };
+
   return (
-    <div className={`uml-node class-node ${selected ? 'selected' : ''}`}>
+    <div 
+      className={`uml-node class-node ${selected ? 'selected' : ''}`}
+      onDoubleClick={handleDoubleClick}
+    >
       {/* Connection handles - Multiple points on each side */}
       {/* Top handles */}
       <Handle
@@ -238,8 +250,8 @@ const UMLClassNode: React.FC<NodeProps<UMLNodeData>> = ({ data, isConnectable, s
         <div className="uml-node-title">{data.label || 'Class'}</div>
       </div>
 
-      {/* Attributes section */}
-      <div className="uml-node-section">
+      {/* Attributes section - Always visible */}
+      <div className="uml-node-section attributes-section">
         {attributes.length > 0 ? (
           attributes.map((attr) => (
             <div key={attr.id} className="uml-attribute">
@@ -249,23 +261,21 @@ const UMLClassNode: React.FC<NodeProps<UMLNodeData>> = ({ data, isConnectable, s
               <span className="attribute-name">{attr.name}</span>
               <span className="attribute-separator">:</span>
               <span className="attribute-type">{attr.type}</span>
-              {attr.isStatic && <span className="static-indicator">static</span>}
-              {attr.isFinal && <span className="final-indicator">final</span>}
-              {attr.defaultValue && (
-                <>
-                  <span className="attribute-separator">=</span>
-                  <span className="attribute-default">{attr.defaultValue}</span>
-                </>
-              )}
+              {attr.isStatic && <span className="static-indicator"> (static)</span>}
             </div>
           ))
         ) : (
-          <div className="empty-section-message">No attributes</div>
+          <div className="uml-empty-section">
+            <span className="uml-placeholder-text">(no attributes)</span>
+          </div>
         )}
       </div>
 
-      {/* Methods section */}
-      <div className="uml-node-section">
+      {/* Separator line */}
+      <div className="uml-section-separator"></div>
+
+      {/* Methods section - Always visible */}
+      <div className="uml-node-section methods-section">
         {methods.length > 0 ? (
           methods.map((method) => (
             <div key={method.id} className="uml-method">
@@ -274,20 +284,18 @@ const UMLClassNode: React.FC<NodeProps<UMLNodeData>> = ({ data, isConnectable, s
               </span>{' '}
               <span className="method-name">{method.name}</span>
               <span className="method-params">
-                (
-                {method.parameters
-                  .map((param) => `${param.name}: ${param.type}`)
-                  .join(', ')}
-                )
+                ({method.parameters?.map(p => `${p.name}: ${p.type}`).join(', ') || ''})
               </span>
               <span className="method-separator">:</span>
               <span className="method-type">{method.returnType}</span>
-              {method.isStatic && <span className="static-indicator">static</span>}
-              {method.isAbstract && <span className="abstract-indicator">abstract</span>}
+              {method.isStatic && <span className="static-indicator"> (static)</span>}
+              {method.isAbstract && <span className="abstract-indicator"> (abstract)</span>}
             </div>
           ))
         ) : (
-          <div className="empty-section-message">No methods</div>
+          <div className="uml-empty-section">
+            <span className="uml-placeholder-text">(no methods)</span>
+          </div>
         )}
       </div>
     </div>

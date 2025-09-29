@@ -28,7 +28,7 @@ export class DownloadService {
         console.log(`Agregando archivo: ${file.path}`);
         
         // Determinar la ruta correcta según el tipo de archivo
-        let correctPath = this.getCorrectMavenPath(file, projectName);
+        const correctPath = this.getCorrectMavenPath(file, projectName);
         
         // Agregar archivo al ZIP con la ruta correcta
         projectFolder.file(correctPath, file.content);

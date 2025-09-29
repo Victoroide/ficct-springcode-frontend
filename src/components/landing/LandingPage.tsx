@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { v4 as uuidv4 } from 'uuid';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { anonymousApiClient } from '@/services/anonymousApiClient';
@@ -11,7 +10,7 @@ import { Palette, Code, Users, Zap, Download, Share2 } from 'lucide-react';
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [isCreating, setIsCreating] = useState(false);
-  const [recentDiagrams, setRecentDiagrams] = useState<any[]>([]);
+  const [recentDiagrams, setRecentDiagrams] = useState<Array<{id: string; name: string; updated_at: string; is_public: boolean}>>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Cargar diagramas recientes al montar el componente
@@ -21,19 +20,17 @@ const LandingPage: React.FC = () => {
       try {
         const response = await anonymousApiClient.get('/diagrams/');
         
-        if (import.meta.env.DEV) {
-          console.log('💾 Respuesta de diagramas recientes:', response);
-        }
         
         if (response.success && response.data) {
           // Manejar diferentes formatos de respuesta y corregir errores TypeScript
-          let diagrams: any[] = [];
-          const data = response.data as any;
+          let diagrams: Array<{id: string; name: string; updated_at: string; is_public: boolean}> = [];
+          const data = response.data as {results?: unknown[], items?: unknown[], diagrams?: unknown[]} | unknown[];
           
           if (Array.isArray(data)) {
-            diagrams = data;
+            diagrams = data as Array<{id: string; name: string; updated_at: string; is_public: boolean}>;
           } else if (typeof data === 'object' && data !== null) {
-            diagrams = data.results || data.items || data.diagrams || [];
+            const objectData = data as {results?: unknown[], items?: unknown[], diagrams?: unknown[]};
+            diagrams = (objectData.results || objectData.items || objectData.diagrams || []) as Array<{id: string; name: string; updated_at: string; is_public: boolean}>;
           }
             
           setRecentDiagrams(diagrams);
@@ -72,32 +69,24 @@ const LandingPage: React.FC = () => {
 
       if (response.success && response.data) {
         // 🔧 CRITICAL FIX: Extracción robusta de diagram ID
-        const diagramData = response.data as any;
-        
-        // Logging detallado de la respuesta de API para debugging
-        if (import.meta.env.DEV) {
-          console.log('💾 Respuesta de API diagrams:', response.data);
-        }
+        const diagramData = response.data as {id?: string; uuid?: string; diagram_id?: string; _id?: string} | Array<{id?: string; uuid?: string}>;
         
         // Extraer ID con fallbacks y validación
-        let diagramId = diagramData.id || diagramData.uuid;
+        let diagramId: string | undefined;
         
-        // Si aún no hay ID, buscar en otras propiedades comunes
-        if (!diagramId && typeof diagramData === 'object') {
-          diagramId = diagramData.uuid || diagramData.diagram_id || diagramData._id;
-          
-          // Si es un array, podría ser el primer objeto
-          if (!diagramId && Array.isArray(diagramData) && diagramData.length > 0) {
+        if (Array.isArray(diagramData)) {
+          // Si es un array, tomar el primer elemento
+          if (diagramData.length > 0) {
             const firstItem = diagramData[0];
             diagramId = firstItem?.id || firstItem?.uuid;
           }
+        } else {
+          // Si es un objeto
+          diagramId = diagramData.id || diagramData.uuid || diagramData.diagram_id || diagramData._id;
         }
         
         // Verificar explícitamente que tengamos un ID válido
         if (diagramId && diagramId !== 'undefined' && diagramId !== 'null') {
-          if (import.meta.env.DEV) {
-            console.log('💾 Usando diagram ID válido:', diagramId);
-          }
           anonymousSessionService.addDiagramToSession(diagramId);
           navigate(`/editor/${diagramId}`);
           return;
@@ -111,7 +100,6 @@ const LandingPage: React.FC = () => {
       
       // Fallback a un UUID compatible generado localmente
       const localId = `00000000-0000-4000-a000-000000000001`;
-      console.log('🔧 Usando ID fallback:', localId);
       navigate(`/editor/${localId}`);
     } catch (error) {
       console.error('Error creating diagram:', error);

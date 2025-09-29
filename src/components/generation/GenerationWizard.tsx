@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-nocheck - Complex generation component
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,13 +11,9 @@ import { Separator } from '@/components/ui/separator';
 import { 
   ArrowRight, 
   ArrowLeft, 
-  Code, 
   Package, 
   Settings, 
-  Database, 
-  Shield,
   Zap,
-  FileText,
   CheckCircle,
   Network
 } from 'lucide-react';
@@ -384,7 +380,7 @@ export function GenerationWizard({ onComplete }: GenerationWizardProps) {
           </div>
         );
 
-      case 3:
+      case 3: {
         // Encontrar el diagrama seleccionado
         const selectedDiagram = diagrams.find(d => d.id === formData.diagram);
         
@@ -477,7 +473,7 @@ export function GenerationWizard({ onComplete }: GenerationWizardProps) {
                   <span className="text-slate-500 dark:text-slate-400 text-sm">Dependencias seleccionadas:</span>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {formData.generationConfig.dependencies.map(dep => (
-                      <Badge key={dep} variant="secondary" className="text-xs">
+                      <Badge key={dep} variant="outline" className="text-xs">
                         {availableDependencies.find(d => d.id === dep)?.name || dep}
                       </Badge>
                     ))}
@@ -487,6 +483,7 @@ export function GenerationWizard({ onComplete }: GenerationWizardProps) {
             </Card>
           </div>
         );
+      }
 
       default:
         return null;

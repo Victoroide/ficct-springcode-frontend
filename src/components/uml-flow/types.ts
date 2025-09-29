@@ -1,139 +1,113 @@
 /**
- * UML Flow Editor - Type definitions
+ * UML Editor Types
+ * Core type definitions for UML diagrams and React Flow components
  */
 
-// Usar una declaración de tipo para evitar las importaciones
-// Ya que Node y Edge son tipos genéricos, podemos definirlos aquí
-import type { ReactFlowJsonObject } from 'reactflow';
+import type { Node, Edge } from 'reactflow';
 
-// Definir Node y Edge localmente basándonos en los tipos genéricos de ReactFlow
-type NodeData = any;
-type EdgeData = any;
+/**
+ * UML Node types
+ */
+export type UMLNodeType = 'class' | 'interface' | 'enum' | 'abstractClass' | 'record';
 
-type NodeType = {
-  id: string;
-  type?: string;
-  position: { x: number; y: number };
-  data: NodeData;
-  [key: string]: any;
-};
-
-type EdgeType = {
-  id: string;
-  source: string;
-  target: string;
-  type?: string;
-  sourceHandle?: string | null;
-  targetHandle?: string | null;
-  data?: EdgeData;
-  [key: string]: any;
-};
-
-// UML Node Types
-export enum UMLNodeType {
-  CLASS = 'class',
-  INTERFACE = 'interface',
-  ABSTRACT_CLASS = 'abstractClass',
-  ENUM = 'enum',
-  RECORD = 'record'
+/**
+ * UML Node data interface
+ */
+export interface UMLNodeData {
+  id?: string;
+  label: string;
+  nodeType?: UMLNodeType;
+  position?: { x: number; y: number };
+  attributes?: UMLAttribute[];
+  methods?: UMLMethod[];
+  enumValues?: UMLEnumValue[];
+  isAbstract?: boolean;
+  package?: string;
 }
 
-// UML Relationship Types
-export enum UMLRelationshipType {
-  ASSOCIATION = 'association',
-  AGGREGATION = 'aggregation',
-  COMPOSITION = 'composition',
-  INHERITANCE = 'inheritance',
-  IMPLEMENTATION = 'implementation',
-  DEPENDENCY = 'dependency'
-}
-
-// UML Visibility Types
-export enum UMLVisibility {
-  PUBLIC = 'public',
-  PRIVATE = 'private',
-  PROTECTED = 'protected',
-  PACKAGE = 'package'
-}
-
-// UML Multiplicity Types
-export enum UMLMultiplicity {
-  ZERO_OR_ONE = '0..1',
-  ONE = '1',
-  ZERO_OR_MANY = '0..*',
-  ONE_OR_MANY = '1..*',
-  MANY = '*',
-  CUSTOM = 'custom'
-}
-
-// UML Attribute
+/**
+ * UML Node Attribute
+ */
 export interface UMLAttribute {
   id: string;
   name: string;
   type: string;
   visibility: UMLVisibility;
   isStatic: boolean;
-  isFinal: boolean;
+  isFinal?: boolean;
   defaultValue?: string;
 }
 
-// UML Method Parameter
-export interface UMLMethodParameter {
+/**
+ * UML Node Method
+ */
+export interface UMLMethod {
+  id: string;
+  name: string;
+  parameters: UMLParameter[];
+  returnType: string;
+  visibility: UMLVisibility;
+  isStatic: boolean;
+  isAbstract?: boolean;
+}
+
+/**
+ * UML Method Parameter
+ */
+export interface UMLParameter {
   id: string;
   name: string;
   type: string;
   defaultValue?: string;
 }
 
-// UML Method
-export interface UMLMethod {
-  id: string;
-  name: string;
-  returnType: string;
-  parameters: UMLMethodParameter[];
-  visibility: UMLVisibility;
-  isStatic: boolean;
-  isAbstract: boolean;
-}
-
-// UML Enum Value
+/**
+ * UML Enum Value
+ */
 export interface UMLEnumValue {
   id: string;
   name: string;
   value?: string;
 }
 
-// UML Node Data
-export interface UMLNodeData {
-  label: string;
-  nodeType: UMLNodeType;
-  attributes: UMLAttribute[];
-  methods: UMLMethod[];
-  enumValues?: UMLEnumValue[];
-  isAbstract?: boolean;
-  implementsInterfaces?: string[];
-  extendsClass?: string;
-}
-
-// Extended Node type for React Flow with UML data
-export type UMLNode = NodeType & { data: UMLNodeData };
-
-// UML Edge Data
+/**
+ * UML Edge (Relationship) data
+ */
 export interface UMLEdgeData {
   relationshipType: UMLRelationshipType;
-  sourceMultiplicity?: UMLMultiplicity;
-  targetMultiplicity?: UMLMultiplicity;
-  sourceLabel?: string;
-  targetLabel?: string;
-  customSourceMultiplicity?: string;
-  customTargetMultiplicity?: string;
+  sourceMultiplicity?: string;
+  targetMultiplicity?: string;
+  label?: string;
 }
 
-// Extended Edge type for React Flow with UML data
-export type UMLEdge = EdgeType & { data: UMLEdgeData };
+/**
+ * UML Relationship types
+ */
+export type UMLRelationshipType = 'ASSOCIATION' | 'INHERITANCE' | 'IMPLEMENTATION' | 'DEPENDENCY' | 'AGGREGATION' | 'COMPOSITION' | 'REALIZATION';
 
-// Editor Mode
-export type EditorMode = 'select' | 'pan' | 'connect' | 'class' | 'interface' | 'abstractClass' | 'enum' | 'record';
+/**
+ * UML Visibility modifiers
+ */
+export type UMLVisibility = 'public' | 'private' | 'protected' | 'package';
 
-// Generate unique ID
-export const generateId = () => `id-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+/**
+ * Editor modes for toolbar selection
+ */
+export type EditorMode = 'select' | 'pan' | 'connect' | 'create-class' | 'create-interface' | 'create-enum' | 'class' | 'interface' | 'enum';
+
+/**
+ * UML Node with typed data
+ */
+export type UMLNode = Node<UMLNodeData>;
+
+/**
+ * UML Edge with typed data
+ */
+export type UMLEdge = Edge<UMLEdgeData>;
+
+/**
+ * Generate a unique ID for UML elements
+ */
+export const generateId = (): string => {
+  return `id-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+};

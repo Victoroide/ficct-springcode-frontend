@@ -11,6 +11,7 @@ export interface EnvironmentConfig {
   }
   api: {
     baseUrl: string
+    wsUrl: string  // URL específica para WebSocket (ASGI)
     timeout: number
     retryAttempts: number
   }
@@ -40,7 +41,8 @@ class Environment {
         environment: (import.meta.env.VITE_APP_ENV as any) || 'development',
       },
       api: {
-        baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost', // URL base del servidor (nginx proxy)
+        baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost',
+        wsUrl: import.meta.env.VITE_API_WS_URL || 'ws://localhost:8001',
         timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '10000', 10),
         retryAttempts: parseInt(import.meta.env.VITE_API_RETRY_ATTEMPTS || '3', 10),
       },

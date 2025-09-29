@@ -1,5 +1,5 @@
-// @ts-nocheck - Allow compilation
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
@@ -66,10 +66,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       this.props.onError(error, errorInfo);
     } else {
       // Default error reporting
-      console.group('🚨 Error Boundary Report');
-      console.error('Component Stack:', errorInfo.componentStack);
-      console.error('Error:', error);
-      console.groupEnd();
+      console.error('Error Boundary Report - Component Stack:', errorInfo.componentStack);
+      console.error('Error Boundary Report - Error:', error);
     }
   }
 

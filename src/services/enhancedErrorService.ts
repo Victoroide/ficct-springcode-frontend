@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 
 export interface ErrorContext {
@@ -8,7 +7,7 @@ export interface ErrorContext {
   timestamp: string;
   userAgent: string;
   url: string;
-  additionalData?: Record<string, any>;
+  additionalData?: Record<string, unknown>;
 }
 
 export interface ErrorHandlerOptions {

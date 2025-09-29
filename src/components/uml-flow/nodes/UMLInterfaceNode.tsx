@@ -6,19 +6,19 @@
 import React, { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import type { NodeProps } from 'reactflow';
-import { UMLVisibility } from '../types';
+import type { UMLVisibility } from '../types';
 import type { UMLNodeData } from '../types';
 
 // Helper function to render visibility symbol
 const getVisibilitySymbol = (visibility: UMLVisibility): string => {
   switch (visibility) {
-    case UMLVisibility.PUBLIC:
+    case 'public':
       return '+';
-    case UMLVisibility.PRIVATE:
+    case 'private':
       return '-';
-    case UMLVisibility.PROTECTED:
+    case 'protected':
       return '#';
-    case UMLVisibility.PACKAGE:
+    case 'package':
       return '~';
     default:
       return '+';

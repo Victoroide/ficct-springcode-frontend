@@ -2,6 +2,78 @@
  * UML Flow Editor Styles
  */
 
+/* PROFESSIONAL TOOLBAR STYLES - RESTORED */
+.uml-toolbar {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 12px;
+  min-height: 48px; /* Professional height */
+  backdrop-filter: blur(10px);
+}
+
+.uml-toolbar button {
+  padding: 10px 12px; /* Larger, more professional padding */
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  background: #ffffff;
+  color: #495057;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 44px; /* Touch-friendly minimum */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.uml-toolbar button:hover {
+  background: #f8f9fa;
+  border-color: #adb5bd;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.uml-toolbar button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.uml-toolbar button.bg-blue-600 {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-color: #2563eb;
+  color: white;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.uml-toolbar button.bg-blue-600:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.uml-toolbar button.bg-green-600 {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #059669;
+  color: white;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.uml-toolbar button.bg-green-600:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.uml-toolbar .h-px {
+  background: linear-gradient(90deg, transparent 0%, #dee2e6 50%, transparent 100%);
+  margin: 8px 0;
+}
+
 /* Base styles for React Flow */
 .react-flow__handle {
   background-color: #1a192b;
@@ -26,69 +98,130 @@
   left: -4px;
 }
 
-/* UML Node Styles */
+/* PROFESSIONAL UML Node Styles - RESTORED */
 .uml-node {
   padding: 0;
-  border-radius: 4px;
-  border: 1px solid #1a192b;
-  background-color: white;
-  overflow: hidden;
-  min-width: 150px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  border-radius: 2px; /* Sharper corners for professional look */
+  border: 2px solid #2c3e50; /* Thicker, professional border */
+  background-color: #ffffff;
+  overflow: visible; /* Allow connection handles to show */
+  min-width: 180px; /* Wider minimum for readability */
+  min-height: 120px; /* Better proportions */
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', monospace;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Professional shadow */
 }
 
 .uml-node.selected {
-  box-shadow: 0 0 0 2px #1a192b;
+  border-color: #3498db; /* Blue selection */
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2), 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.uml-node.class-node {
+  border-color: #2c3e50;
+}
+
+.uml-node.interface-node {
+  border-color: #8e44ad;
+  border-style: dashed;
+}
+
+.uml-node.abstract-node {
+  border-color: #e67e22;
 }
 
 .uml-node-header {
-  background-color: #f0f0f0;
-  padding: 8px;
+  background-color: #ecf0f1;
+  padding: 12px 16px;
   text-align: center;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 2px solid #bdc3c7;
+  position: relative;
 }
 
 .uml-node-stereotype {
-  font-size: 0.75rem;
-  color: #666;
-  margin-bottom: 2px;
+  font-size: 0.7rem;
+  color: #7f8c8d;
+  margin-bottom: 4px;
+  font-style: italic;
+  font-weight: normal;
 }
 
 .uml-node-title {
-  font-weight: bold;
-  font-size: 0.9rem;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #2c3e50;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.02em;
 }
 
 .uml-node-section {
   padding: 8px;
-  border-bottom: 1px solid #eee;
   min-height: 30px;
   max-height: 150px;
   overflow-y: auto;
 }
 
-.uml-node-section:last-child {
+.uml-node-section.attributes-section {
+  border-bottom: 1px solid #ddd;
+}
+
+.uml-node-section.methods-section {
   border-bottom: none;
 }
 
+.uml-section-separator {
+  height: 1px;
+  background-color: #ddd;
+  margin: 0;
+}
+
+.uml-empty-section {
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.uml-placeholder-text {
+  font-style: italic;
+  color: #999;
+  font-size: 0.75rem;
+}
+
+/* PROFESSIONAL UML Content Styles - RESTORED */
 .uml-attribute,
 .uml-method,
 .uml-record-component,
 .uml-enum-constant {
-  font-size: 0.8rem;
-  margin: 2px 0;
+  font-size: 0.85rem;
+  margin: 4px 0;
+  padding: 2px 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: #2c3e50;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  line-height: 1.4;
+}
+
+.uml-attribute {
+  border-left: 3px solid transparent;
+  padding-left: 8px;
+}
+
+.uml-method {
+  border-left: 3px solid transparent;
+  padding-left: 8px;
+  font-weight: 500;
 }
 
 .visibility-indicator {
   display: inline-block;
-  width: 12px;
+  width: 20px;
   text-align: center;
+  font-weight: bold;
+  font-size: 0.9rem;
 }
 
 .visibility-indicator.private {
@@ -97,6 +230,52 @@
 
 .visibility-indicator.protected {
   color: #f39c12;
+}
+
+.visibility-indicator.public {
+  color: #27ae60;
+}
+
+.visibility-indicator.package {
+  color: #3498db;
+}
+
+.attribute-name {
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.attribute-type {
+  color: #8e44ad;
+  font-style: italic;
+}
+
+.attribute-separator,
+.method-separator {
+  color: #7f8c8d;
+  margin: 0 4px;
+}
+
+.method-name {
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.method-params {
+  color: #34495e;
+}
+
+.method-type {
+  color: #8e44ad;
+  font-style: italic;
+}
+
+.static-indicator,
+.abstract-indicator {
+  font-size: 0.7rem;
+  color: #95a5a6;
+  font-style: italic;
+  margin-left: 6px;
 }
 
 .visibility-indicator.public {

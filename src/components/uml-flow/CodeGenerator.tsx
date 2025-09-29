@@ -163,7 +163,7 @@ const CodeGenerator: React.FC<CodeGeneratorProps> = ({ nodes, edges }) => {
         </Button>
       </DialogTrigger>
       
-      {/* @ts-ignore - Component type definition issue */}
+      {/* @ts-expect-error - Component type definition issue */}
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Generador de Código SpringBoot</DialogTitle>
