@@ -130,13 +130,11 @@ export class UMLCollaborationService {
     // 🔧 CRITICAL: Evitar re-inicialización si ya está inicializado para el mismo diagrama
     if (this.currentDiagramId === diagramId && this.wsService?.isConnected()) {
       if (import.meta.env.DEV) {
-        console.log('⚙️ Ya está inicializado para diagrama:', diagramId);
       }
       return null; // Ya inicializado
     }
     
     if (import.meta.env.DEV) {
-      console.log('🔔 Inicializando colaboración para diagrama:', diagramId);
     }
     
     this.currentDiagramId = diagramId;
@@ -150,7 +148,6 @@ export class UMLCollaborationService {
         try {
           diagram = await diagramService.getDiagram(diagramId);
           if (import.meta.env.DEV) {
-            console.log('📝 Diagrama existente cargado:', diagram);
           }
         } catch (error) {
           console.warn('⚠️ No se pudo cargar diagrama existente, creando uno nuevo:', error);
@@ -162,12 +159,11 @@ export class UMLCollaborationService {
       await this.connectWebSocket(diagramId);
       
       if (import.meta.env.DEV) {
-        console.log('🔗 WebSocket conectado para diagrama:', diagramId);
       }
       
       return diagram;
     } catch (error) {
-      console.error('❌ Error inicializando colaboración:', error);
+      console.error('Error inicializando colaboración:', error);
       return null;
     }
   }
@@ -180,7 +176,6 @@ export class UMLCollaborationService {
     // 🔧 CRITICAL FIX: Solo desconectar si es un diagrama diferente
     if (this.wsService && this.currentDiagramId !== diagramId) {
       if (import.meta.env.DEV) {
-        console.log('🔄 Cambiando de diagrama, desconectando WebSocket anterior');
       }
       this.wsService.disconnect();
       // CRITICAL FIX: Immediately notify disconnected state with delay to prevent race conditions
@@ -188,7 +183,6 @@ export class UMLCollaborationService {
     } else if (this.wsService?.isConnected()) {
       // Ya conectado al mismo diagrama
       if (import.meta.env.DEV) {
-        console.log('✅ WebSocket ya conectado para diagrama:', diagramId);
       }
       // CRITICAL FIX: Notificar estado actual de la conexión con delay
       setTimeout(() => this.events.onConnectionStatus?.(true), 0);
@@ -208,40 +202,35 @@ export class UMLCollaborationService {
       onConnect: () => {
         // Log solo en desarrollo
         if (import.meta.env.DEV) {
-          console.log('✅ WebSocket conectado para diagrama:', diagramId);
         }
         // 🔧 CRITICAL FIX: Always notify connection status change immediately
         this.events.onConnectionStatus?.(true);
       },
       onDisconnect: (reason: string) => {
         if (import.meta.env.DEV) {
-          console.log('🔌 WebSocket desconectado:', reason);
         }
         // 🔧 CRITICAL FIX: Always notify disconnection immediately
         this.events.onConnectionStatus?.(false);
       },
       onError: (error: Event) => {
-        console.error('❌ Error WebSocket:', error);
+        console.error('Error WebSocket:', error);
         // 🔧 CRITICAL FIX: Always notify error state as disconnected
         this.events.onConnectionStatus?.(false);
       },
       onUserJoin: (user) => {
         // CRITICAL FIX: Solo log detallado en desarrollo
         if (import.meta.env.DEV) {
-          console.log('👋 Usuario conectado:', user);
         }
         // Notificar al callback registrado
         this.events.onUserJoined?.(user);
       },
       onUserLeave: (user) => {
         if (import.meta.env.DEV) {
-          console.log('👋 Usuario desconectado:', user);
         }
         this.events.onUserLeft?.(user);
       },
       onDiagramChange: (change) => {
         if (import.meta.env.DEV) {
-          console.log('🔄 Cambio en diagrama recibido:', change.change_type || change.type, change);
         }
         // 🔧 CRITICAL FIX: Broadcast change with proper type mapping
         const mappedChange = {
@@ -252,16 +241,14 @@ export class UMLCollaborationService {
       },
       onChatMessage: (message) => {
         if (import.meta.env.DEV) {
-          console.log('💬 Mensaje de chat:', message);
         }
         this.events.onChatMessage?.(message);
       },
       // CRITICAL FIX: Añadir handlers para reconexión
       onReconnect: (attempt) => {
-        console.log(`🔄 Intento de reconexión ${attempt}`);
       },
       onReconnectFailed: () => {
-        console.error('❌ Reconexión fallida después de varios intentos');
+        console.error('Reconexión fallida después de varios intentos');
         this.events.onConnectionStatus?.(false);
       }
     };
@@ -273,7 +260,7 @@ export class UMLCollaborationService {
       await this.wsService.connect(diagramId);
       // Connection success will be notified via the onConnect handler
     } catch (error) {
-      console.error('❌ Error conectando WebSocket:', error);
+      console.error('Error conectando WebSocket:', error);
       // Only notify false on actual connection failure
       this.events.onConnectionStatus?.(false);
       throw error;
@@ -341,7 +328,6 @@ export class UMLCollaborationService {
       }
       
       if (import.meta.env.DEV) {
-        console.log('Diagram changes broadcasted to all connected clients');
       }
       return Promise.resolve();
     }
@@ -394,7 +380,6 @@ export class UMLCollaborationService {
     const isConnected = this.isConnected();
     // UNIVERSAL FIX: Reduced logging noise
     if (import.meta.env.DEV) {
-      console.log('Refreshing connection status:', isConnected);
     }
     // Use immediate callback to prevent timing issues
     this.events.onConnectionStatus?.(isConnected);
@@ -440,7 +425,6 @@ export class UMLCollaborationService {
   updateHandlers(handlers: Partial<CollaborationEvents>): void {
     this.events = { ...this.events, ...handlers };
     if (import.meta.env.DEV) {
-      console.log('💫 Handlers actualizados:', Object.keys(this.events));
     }
   }
 
@@ -453,13 +437,11 @@ export class UMLCollaborationService {
   async sendTitleUpdate(diagramId: string, title: string, senderId?: string): Promise<void> {
     if (!this.wsService?.isConnected() || !this.currentDiagramId) {
       if (import.meta.env.DEV) {
-        console.log('Cannot send title: WebSocket not connected');
       }
       return Promise.resolve(); // Don't throw, just skip
     }
     
     if (import.meta.env.DEV) {
-      console.log('Sending title update:', title);
     }
     
     // Get current session for tracking

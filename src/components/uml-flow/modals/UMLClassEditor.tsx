@@ -133,8 +133,24 @@ const UMLClassEditor: React.FC<UMLClassEditorProps> = ({ isOpen, nodeData, onClo
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-4/5 max-w-4xl h-4/5 max-h-screen flex flex-col">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={(e) => {
+        // Close modal only if clicking backdrop, not content
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      onKeyDown={(e) => {
+        // Only Escape closes the modal, prevent Space from closing
+        if (e.key === 'Escape') {
+          onClose();
+        }
+        // Stop propagation to prevent other keyboard handlers
+        e.stopPropagation();
+      }}
+    >
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl h-full max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-semibold">Edit UML Class</h2>
@@ -179,8 +195,15 @@ const UMLClassEditor: React.FC<UMLClassEditorProps> = ({ isOpen, nodeData, onClo
                   type="text"
                   value={editingData.label || ''}
                   onChange={(e) => setEditingData(prev => ({ ...prev, label: e.target.value }))}
+                  onKeyDown={(e) => {
+                    // Prevent Space from bubbling up and closing modal
+                    if (e.key === ' ') {
+                      e.stopPropagation();
+                    }
+                  }}
                   className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter class name"
+                  autoFocus
                 />
               </div>
 
@@ -205,6 +228,7 @@ const UMLClassEditor: React.FC<UMLClassEditorProps> = ({ isOpen, nodeData, onClo
                   type="text"
                   value={editingData.package || ''}
                   onChange={(e) => setEditingData(prev => ({ ...prev, package: e.target.value }))}
+                  onKeyDown={(e) => e.stopPropagation()}
                   className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500"
                   placeholder="com.example.package"
                 />
@@ -236,6 +260,7 @@ const UMLClassEditor: React.FC<UMLClassEditorProps> = ({ isOpen, nodeData, onClo
                     placeholder="Attribute name"
                     value={newAttribute.name}
                     onChange={(e) => setNewAttribute(prev => ({ ...prev, name: e.target.value }))}
+                    onKeyDown={(e) => e.stopPropagation()}
                     className="p-2 border rounded-md"
                   />
                   <input
@@ -243,6 +268,7 @@ const UMLClassEditor: React.FC<UMLClassEditorProps> = ({ isOpen, nodeData, onClo
                     placeholder="Type"
                     value={newAttribute.type}
                     onChange={(e) => setNewAttribute(prev => ({ ...prev, type: e.target.value }))}
+                    onKeyDown={(e) => e.stopPropagation()}
                     className="p-2 border rounded-md"
                   />
                   <select
@@ -261,6 +287,7 @@ const UMLClassEditor: React.FC<UMLClassEditorProps> = ({ isOpen, nodeData, onClo
                     placeholder="Default value"
                     value={newAttribute.defaultValue || ''}
                     onChange={(e) => setNewAttribute(prev => ({ ...prev, defaultValue: e.target.value }))}
+                    onKeyDown={(e) => e.stopPropagation()}
                     className="p-2 border rounded-md"
                   />
                 </div>
@@ -335,6 +362,7 @@ const UMLClassEditor: React.FC<UMLClassEditorProps> = ({ isOpen, nodeData, onClo
                     placeholder="Method name"
                     value={newMethod.name}
                     onChange={(e) => setNewMethod(prev => ({ ...prev, name: e.target.value }))}
+                    onKeyDown={(e) => e.stopPropagation()}
                     className="p-2 border rounded-md"
                   />
                   <input
@@ -342,6 +370,7 @@ const UMLClassEditor: React.FC<UMLClassEditorProps> = ({ isOpen, nodeData, onClo
                     placeholder="Return type"
                     value={newMethod.returnType}
                     onChange={(e) => setNewMethod(prev => ({ ...prev, returnType: e.target.value }))}
+                    onKeyDown={(e) => e.stopPropagation()}
                     className="p-2 border rounded-md"
                   />
                   <select

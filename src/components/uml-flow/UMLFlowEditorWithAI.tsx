@@ -7,8 +7,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Node, Edge } from 'reactflow';
 
 // Import existing components
-import UMLFlowEditorFixed from './UMLFlowEditorFixed';
-import AIAssistant from '../ai-assistant/AIAssistant';
+import UMLFlowEditorFixed from './UMLFlowEditorBase';
+import AIAssistantComplete from '../ai-assistant/AIAssistantComplete';
 
 // Import types
 import type { UMLNode, UMLEdge } from './types';
@@ -25,6 +25,7 @@ interface UMLFlowEditorWithAIProps {
   onStartCollaboration?: () => void;
   onStopCollaboration?: () => void;
   hasUnsavedChanges?: boolean;
+  showCommandInput?: boolean;
 }
 
 const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
@@ -38,7 +39,8 @@ const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
   isCollaborating = false,
   onStartCollaboration,
   onStopCollaboration,
-  hasUnsavedChanges = false
+  hasUnsavedChanges = false,
+  showCommandInput = true
 }) => {
   // State for tracking nodes and edges to pass to AI Assistant
   const [currentNodes, setCurrentNodes] = useState<Node[]>(initialNodes);
@@ -77,6 +79,22 @@ const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
     setTimeout(() => setCurrentAction(null), 3000);
   }, [onEdgesChange]);
 
+  // Handle elements generated from natural language commands
+  const handleElementsGenerated = useCallback((elements: { nodes: any[]; edges: any[] }) => {
+    const newNodes = [...currentNodes, ...elements.nodes];
+    const newEdges = [...currentEdges, ...elements.edges];
+    
+    setCurrentNodes(newNodes);
+    setCurrentEdges(newEdges);
+    
+    onNodesChange?.(newNodes);
+    onEdgesChange?.(newEdges);
+    
+    // Track user action for AI context
+    setCurrentAction(`Elementos generados por IA: ${elements.nodes.length} nodos, ${elements.edges.length} relaciones`);
+    setTimeout(() => setCurrentAction(null), 5000);
+  }, [currentNodes, currentEdges, onNodesChange, onEdgesChange]);
+
   // Handle save with AI context tracking
   const handleSave = useCallback(() => {
     onSave?.();
@@ -88,18 +106,13 @@ const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
 
   // Toggle AI Assistant
   const toggleAIAssistant = useCallback(() => {
-    console.log('toggleAIAssistant called, current state:', isAIAssistantOpen);
-    setIsAIAssistantOpen(prev => {
-      console.log('Setting AI Assistant open to:', !prev);
-      return !prev;
-    });
-  }, [isAIAssistantOpen]);
+    setIsAIAssistantOpen(prev => !prev);
+  }, []);
 
   // Handle AI Assistant feature navigation
   const handleFeatureNavigation = useCallback((feature: string) => {
     // This could navigate to specific parts of the application
     // For now, just show a notification that the feature would be opened
-    console.log('Navigating to feature:', feature);
     
     // You could add logic here to:
     // - Open code generation modal if feature includes "código"
@@ -112,9 +125,7 @@ const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       // Ctrl+H to toggle AI Assistant (case insensitive)
       if (event.ctrlKey && (event.key === 'h' || event.key === 'H')) {
-        event.preventDefault();
         event.stopPropagation();
-        console.log('Ctrl+H pressed - toggling AI Assistant');
         toggleAIAssistant();
       }
       
@@ -135,23 +146,16 @@ const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
     };
   }, [isAIAssistantOpen, toggleAIAssistant]);
 
-  // Memoize AI Assistant props to prevent unnecessary re-renders
-  const aiAssistantProps = useMemo(() => ({
+  // Toggle natural language command input with keyboard shortcut visibility
+  const commandInputProps = useMemo(() => ({
     diagramId,
-    diagramNodes: currentNodes,
-    diagramEdges: currentEdges,
-    currentAction,
-    hasUnsavedChanges,
-    isCollaborating,
-    onFeatureNavigation: handleFeatureNavigation
+    currentNodes,
+    onElementsGenerated: handleElementsGenerated
   }), [
-    diagramId, 
-    currentNodes, 
-    currentEdges, 
-    currentAction, 
-    hasUnsavedChanges, 
-    isCollaborating, 
-    handleFeatureNavigation
+    diagramId,
+    currentNodes,
+    currentEdges,
+    handleElementsGenerated
   ]);
 
   return (
@@ -166,27 +170,32 @@ const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
         isCollaborating={isCollaborating}
         onStartCollaboration={onStartCollaboration}
         onStopCollaboration={onStopCollaboration}
-        // Pass AI Assistant toggle function to toolbar
         onToggleAIAssistant={toggleAIAssistant}
         isAIAssistantOpen={isAIAssistantOpen}
       />
 
-      {/* AI Assistant Overlay */}
-      <AIAssistant
-        {...aiAssistantProps}
+      {/* AI Assistant Complete - Password protection is handled in toolbar */}
+      <AIAssistantComplete
+        diagramId={diagramId}
+        diagramNodes={currentNodes as UMLNode[]}
+        diagramEdges={currentEdges as UMLEdge[]}
         isOpen={isAIAssistantOpen}
         onToggle={toggleAIAssistant}
-        className="z-50"
+        onElementsGenerated={handleElementsGenerated}
       />
 
-      {/* Optional: AI Assistant activation hint for new users */}
-      {!isAIAssistantOpen && currentNodes.length === 0 && (
-        <div className="absolute bottom-20 right-6 bg-blue-100 border border-blue-300 rounded-lg p-3 shadow-lg max-w-xs z-40">
+      {/* Hints for new users */}
+      {currentNodes.length === 0 && (
+        <div className="absolute bottom-6 right-6 bg-gradient-to-r from-blue-100 to-purple-100 border border-blue-300 rounded-lg p-3 shadow-lg max-w-sm z-40">
           <div className="text-sm">
-            <p className="font-medium text-blue-900 mb-1">💡 Sugerencia</p>
-            <p className="text-blue-800 text-xs">
-              ¿Necesitas ayuda? Haz clic en el botón <strong>🧠</strong> o presiona <kbd className="bg-blue-200 px-1 rounded">Ctrl+H</kbd> para abrir el asistente IA
+            <p className="font-medium text-blue-900 mb-1">✨ Asistente IA Disponible</p>
+            <p className="text-blue-800 text-xs mb-2">
+              Usa el asistente IA para ayuda contextual y generación de diagramas.
             </p>
+            <div className="flex flex-col gap-1 text-xs text-gray-700">
+              <div><kbd className="bg-blue-200 px-1 rounded text-xs">Ctrl+H</kbd> - Abrir Asistente IA (Chat + Comandos)</div>
+              <div><kbd className="bg-purple-200 px-1 rounded text-xs">Ctrl+Shift+C</kbd> - Ir directamente a Comandos</div>
+            </div>
           </div>
         </div>
       )}

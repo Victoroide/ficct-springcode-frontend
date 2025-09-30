@@ -100,7 +100,6 @@ const AttributeRelationshipEdge: React.FC<AttributeRelationshipEdgeProps> = ({
       // Notificar cambio de puntos de control
       if (data) {
         // Aquí debería ir una función para actualizar los puntos en el estado global
-        console.log('Updated control points:', controlPoints);
       }
     };
     
@@ -133,7 +132,6 @@ const AttributeRelationshipEdge: React.FC<AttributeRelationshipEdgeProps> = ({
     
     if (data) {
       // Aquí debería ir una función para actualizar los puntos en el estado global
-      console.log('Added control point:', newControlPoints);
     }
   }, [controlPoints, sourceX, sourceY, targetX, targetY, data]);
   

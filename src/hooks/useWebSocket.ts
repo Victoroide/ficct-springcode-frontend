@@ -86,13 +86,10 @@ export const useWebSocket = ({
     // Clean WebSocket URL - no authentication needed for anonymous mode
     const wsUrl = `${env.apiConfig.wsUrl}/ws/diagrams/${diagramId}/${currentSession.sessionId}/`;
     
-    console.log('Connecting to WebSocket:', wsUrl);
-    
     try {
       ws.current = new WebSocket(wsUrl);
       
       ws.current.onopen = () => {
-        console.log('WebSocket connected successfully');
         setIsConnected(true);
         reconnectAttemptsRef.current = 0;
         
@@ -121,15 +118,12 @@ export const useWebSocket = ({
       };
       
       ws.current.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
         setIsConnected(false);
         
         // Attempt reconnection if not intentionally closed
         if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
           const delay = Math.pow(2, reconnectAttemptsRef.current) * 1000; // Exponential backoff
           reconnectAttemptsRef.current++;
-          
-          console.log(`Attempting reconnection ${reconnectAttemptsRef.current}/${maxReconnectAttempts} in ${delay}ms`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
@@ -275,7 +269,6 @@ export const useWebSocket = ({
         break;
         
       default:
-        console.log('Unknown message type:', message.type);
     }
   }, [currentSession.sessionId, onNodesChange, onEdgesChange, onTitleChange, onViewportChange, onUserJoined, onUserLeft, onChatMessage, onTypingIndicator, onUserPresence, connectedUsers]);
   
@@ -293,7 +286,6 @@ export const useWebSocket = ({
       
       // Log outgoing messages in development
       if (import.meta.env.DEV) {
-        console.log('Sent WebSocket message:', type, data);
       }
     } else {
       console.warn('WebSocket not connected, cannot send message:', type);

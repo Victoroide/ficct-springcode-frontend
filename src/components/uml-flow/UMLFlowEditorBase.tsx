@@ -21,13 +21,10 @@ import UMLRelationshipEdge from './edges/UMLRelationshipEdge';
 import AttributeRelationshipEdge from './edges/AttributeRelationshipEdge';
 import UMLToolbar from './UMLToolbarSimple';
 import AnonymousChat from '../chat/AnonymousChat';
-import CodeGenerator from './CodeGenerator';
 import UMLNodePanel from './panels/UMLNodePanel';
 import UMLRelationshipPanel from './panels/UMLRelationshipPanel';
 import UMLEnumPanel from './panels/UMLEnumPanel';
 import UMLClassEditor from './modals/UMLClassEditor';
-import CodeGenerationModal from './modals/CodeGenerationModal';
-import ResponsivePropertiesPanel from './panels/ResponsivePropertiesPanel';
 
 // Import types and utility functions
 import {
@@ -563,18 +560,6 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
           onSave={handleClassEditorSave}
         />
       )}
-
-      {/* Code Generation Modal - Now integrated into toolbar */}
-
-      {/* Responsive Properties Panel */}
-      <ResponsivePropertiesPanel
-        isOpen={showPropertiesPanel}
-        selectedNode={selectedNode}
-        selectedEdge={selectedEdge}
-        onUpdateNode={updateNodeData}
-        onUpdateEdge={updateEdgeData}
-        onClose={() => setShowPropertiesPanel(false)}
-      />
     </div>
   );
 };

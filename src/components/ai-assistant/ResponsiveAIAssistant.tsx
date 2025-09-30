@@ -14,7 +14,7 @@ import {
   Tablet,
   Monitor
 } from 'lucide-react';
-import AIAssistant from './AIAssistant';
+import AIAssistant from './AIAssistantComplete';
 import { cn } from '@/lib/utils';
 
 interface ResponsiveAIAssistantProps {

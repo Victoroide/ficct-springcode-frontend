@@ -192,5 +192,4 @@ export const toast = (props: {
 }) => {
   // This is a simplified implementation
   // In a real application, you'd dispatch to a toast store
-  console.log('Toast:', props);
 };

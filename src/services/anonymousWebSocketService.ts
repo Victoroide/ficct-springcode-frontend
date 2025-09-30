@@ -240,7 +240,6 @@ export class AnonymousWebSocketService {
         this.connectionState === ConnectionState.CONNECTED && 
         this.diagramId === validDiagramId) {
       if (import.meta.env.DEV) {
-        console.log('✅ WebSocket already connected to diagram:', validDiagramId);
       }
       
       // Emit connection event again to ensure UI is in sync
@@ -253,7 +252,6 @@ export class AnonymousWebSocketService {
     // This prevents potential ghost connections
     if (this.ws) {
       if (import.meta.env.DEV) {
-        console.log('🔄 Creating fresh connection, closing previous WebSocket');
       }
       this.disconnect();
     }
@@ -268,9 +266,6 @@ export class AnonymousWebSocketService {
         const wsUrl = this.buildWebSocketUrl(diagramId);
         
         if (import.meta.env.DEV) {
-          console.log('🔗 Connecting to WebSocket URL:', wsUrl);
-          console.log('📋 Session ID:', this.sessionId);
-          console.log('🎯 Diagram ID:', diagramId);
         }
         
         // Create WebSocket connection
@@ -279,9 +274,6 @@ export class AnonymousWebSocketService {
         // Set up event handlers
         this.ws.onopen = (event) => {
           if (import.meta.env.DEV) {
-            console.log('✅ WebSocket connected successfully to ASGI server');
-            console.log('🌐 WebSocket readyState:', this.ws?.readyState);
-            console.log('📟 Connection event details:', event);
           }
           this.connectionState = ConnectionState.CONNECTED;
           this.reconnectAttempts = 0;
@@ -300,8 +292,6 @@ export class AnonymousWebSocketService {
 
         this.ws.onclose = (event) => {
           if (import.meta.env.DEV) {
-            console.log('🔌 WebSocket DESCONECTADO - Código:', event.code, 'Razón:', event.reason);
-            console.log('⚠️ ¿Era cierre limpio?', event.wasClean);
           }
           
           this.connectionState = ConnectionState.DISCONNECTED;
@@ -313,17 +303,14 @@ export class AnonymousWebSocketService {
           // Solo reconectar si no fue un cierre limpio y no manual (código 1000 o 1001)
           if (event.code !== 1000 && event.code !== 1001 && this.reconnectAttempts < this.maxReconnectAttempts) {
             if (import.meta.env.DEV) {
-              console.log('🔄 Programando reconexión...');
             }
             this.scheduleReconnect();
           }
         };
 
         this.ws.onerror = (error) => {
-          console.error('❌ ERROR WebSocket:', error);
+          console.error('ERROR WebSocket:', error);
           if (import.meta.env.DEV) {
-            console.log('🌐 Estado actual readyState:', this.ws?.readyState);
-            console.log('🔧 URL que falló:', this.buildWebSocketUrl(diagramId));
           }
           
           this.connectionState = ConnectionState.ERROR;
@@ -349,7 +336,6 @@ export class AnonymousWebSocketService {
    */
   private ensureValidUUID(id: string): string {
     if (import.meta.env.DEV) {
-      console.log('🔍 Validando UUID para WebSocket:', id);
     }
     
     // Validar que sea un UUID válido
@@ -359,7 +345,6 @@ export class AnonymousWebSocketService {
     if (!id || typeof id !== 'string' || !uuidPattern.test(id)) {
       if (import.meta.env.DEV) {
         console.warn('⚠️ ID no es un UUID válido:', id);
-        console.log('🔧 Generando nuevo UUID para compatibilidad...');
       }
       
       // Generar un UUID v4 aleatorio para evitar errores en backend
@@ -393,7 +378,6 @@ export class AnonymousWebSocketService {
     }
     
     // Registrar la URL que se está utilizando
-    console.log('🔗 Usando URL WebSocket:', wsUrl);
     
     // CRITICAL COLLABORATION FIX:
     // 1. Correct path from '/ws/collaboration/diagrams/' to '/ws/diagrams/'
@@ -402,10 +386,6 @@ export class AnonymousWebSocketService {
     const fullUrl = `${wsUrl}/ws/diagrams/${validDiagramId}/${session.sessionId}/`;
     
     if (import.meta.env.DEV) {
-      console.log('🔌 WebSocket full URL:', fullUrl);
-      console.log('🔑 Session ID:', session.sessionId);
-      console.log('🏷️ Nickname:', session.nickname);
-      console.log('📊 Diagram ID:', validDiagramId);
     }
     
     return fullUrl;
@@ -479,7 +459,6 @@ export class AnonymousWebSocketService {
       
       // Log only important events - reduced to improve console readability
       if (import.meta.env.DEV && (messageType === 'diagram_change' || messageType === 'user_joined')) {
-        console.log(`WebSocket: ${messageType} from ${senderId.substring(0, 8)}`);
       }
       
       // CONTRACT-VALIDATION: Process message using registered handlers
@@ -552,7 +531,6 @@ export class AnonymousWebSocketService {
           break;
           
         default:
-          console.log(`Message processed: ${message.type}`);
       }
     } catch (error) {
       console.error('Error processing WebSocket message:', error);
@@ -620,7 +598,6 @@ export class AnonymousWebSocketService {
   send(message: Partial<WebSocketMessageBase>): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       if (import.meta.env.DEV) {
-        console.log('Cannot send message, WebSocket not connected');
       }
       return;
     }
@@ -643,7 +620,6 @@ export class AnonymousWebSocketService {
     try {
       this.ws.send(JSON.stringify(finalMessage));
       if (import.meta.env.DEV) {
-        console.log(`Sent message: ${message.type}`);
       }
     } catch (error) {
       console.error('Error sending WebSocket message:', error);
@@ -657,7 +633,6 @@ export class AnonymousWebSocketService {
   sendDiagramChange(changeType: string, messageData: Partial<DiagramChangeMessage>): void {
     if (!this.ws || !this.diagramId) {
       if (import.meta.env.DEV) {
-        console.log('Cannot send changes, WebSocket not connected or no active diagram');
       }
       return;
     }
@@ -685,7 +660,6 @@ export class AnonymousWebSocketService {
     this.send(finalMessage);
     
     if (import.meta.env.DEV) {
-      console.log('Diagram change sent with data structure:', message.data);
     }
   }
 
@@ -784,7 +758,6 @@ export class AnonymousWebSocketService {
     this.reconnectAttempts++;
     
     if (import.meta.env.DEV) {
-      console.log(`Scheduling reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}...`);
     }
     
     // Calcular backoff exponencial (pero no más de 30 segundos)
@@ -796,7 +769,6 @@ export class AnonymousWebSocketService {
     this.reconnectTimer = setTimeout(async () => {
       if (this.diagramId) {
         if (import.meta.env.DEV) {
-          console.log(`🔄 Intentando reconexión ${this.reconnectAttempts}...`);
         }
         
         try {

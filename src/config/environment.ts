@@ -22,6 +22,13 @@ export interface EnvironmentConfig {
   features: {
     enableDevtools: boolean
     debugMode: boolean
+    aiEnabled: boolean
+  }
+  ai: {
+    passwordProtected: boolean
+    sessionDuration: number
+    maxAttempts: number
+    lockoutDuration: number
   }
 }
 
@@ -53,6 +60,13 @@ class Environment {
       features: {
         enableDevtools: import.meta.env.VITE_ENABLE_DEVTOOLS === 'true',
         debugMode: import.meta.env.VITE_DEBUG_MODE === 'true',
+        aiEnabled: import.meta.env.VITE_AI_FEATURES_ENABLED === 'true',
+      },
+      ai: {
+        passwordProtected: true,
+        sessionDuration: 24 * 60 * 60 * 1000, // 24 hours
+        maxAttempts: 3,
+        lockoutDuration: 5 * 60 * 1000, // 5 minutes
       },
     }
   }
@@ -92,6 +106,10 @@ class Environment {
 
   get featureConfig() {
     return this.config.features
+  }
+
+  get aiConfig() {
+    return this.config.ai
   }
 
   // Utility methods

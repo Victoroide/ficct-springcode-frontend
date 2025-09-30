@@ -42,7 +42,6 @@ class DiagramService {
   constructor() {
     // Usar la URL de la API desde las variables de entorno
     this.baseURL = env.apiConfig.baseUrl;
-    console.log('🔧 DiagramService inicializado con baseURL:', this.baseURL);
   }
   
   /**
@@ -53,7 +52,6 @@ class DiagramService {
    */
   debouncedAutoSave(diagramId: string, diagramData: Partial<DiagramData>, delay: number = 2000): void {
     if (import.meta.env.DEV) {
-      console.log('💾 Configurando auto-guardado para diagrama:', diagramId);
     }
     
     // Cancelar timeout anterior si existe
@@ -66,7 +64,6 @@ class DiagramService {
     const timeout = setTimeout(async () => {
       try {
         if (import.meta.env.DEV) {
-          console.log('💾 Auto-guardando diagrama:', diagramId);
         }
         
         // Validar UUID para backend
@@ -85,7 +82,7 @@ class DiagramService {
           try {
             formattedContent = JSON.parse(diagramData.content);
           } catch (e) {
-            console.error('❌ Error parsing content string:', e);
+            console.error('Error parsing content string:', e);
             formattedContent = { nodes: [], edges: [] };
           }
         } else {
@@ -101,7 +98,6 @@ class DiagramService {
         });
         
         if (import.meta.env.DEV) {
-          console.log('✅ Diagrama auto-guardado exitosamente:', diagramId);
         }
         
         // IMPORTANTE: Guardar también en localStorage SÓLO DESPUÉS de éxito en DB
@@ -118,12 +114,11 @@ class DiagramService {
         
         return result;
       } catch (error) {
-        console.error('❌ Error en auto-guardado:', error);
+        console.error('Error en auto-guardado:', error);
         this.autoSaveTimeouts.delete(diagramId);
         
         // Reintentar una vez en caso de error
         setTimeout(() => {
-          console.log('🔄 Reintentando auto-guardado tras error...');
           this.debouncedAutoSave(diagramId, diagramData, 0);
         }, 5000);
       }
@@ -144,8 +139,6 @@ class DiagramService {
       session_id: sessionId
     };
     
-    console.log('💾 Creando diagrama:', requestData);
-    
     try {
       const response = await fetch(`${this.baseURL}/api/diagrams/`, {
         method: 'POST',
@@ -157,19 +150,18 @@ class DiagramService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error response:', response.status, errorText);
+        console.error('Error response:', response.status, errorText);
         throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
-      console.log('✅ Diagrama creado exitosamente:', result);
       
       // Add diagram to session
       anonymousSessionService.addDiagramToSession(result.id);
       
       return result;
     } catch (error) {
-      console.error('❌ Error creando diagrama:', error);
+      console.error('Error creando diagrama:', error);
       throw error;
     }
   }
@@ -178,7 +170,6 @@ class DiagramService {
    * Update an existing diagram
    */
   async updateDiagram(id: string, data: UpdateDiagramRequest): Promise<DiagramData> {
-    console.log('💾 Actualizando diagrama:', id);
     
     // Asegurar UUID válido para backend
     const validUUID = this.ensureValidUUID(id);
@@ -221,15 +212,14 @@ class DiagramService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error response:', response.status, errorText);
+        console.error('Error response:', response.status, errorText);
         throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
-      console.log('✅ Diagrama actualizado exitosamente');
       return result;
     } catch (error) {
-      console.error('❌ Error actualizando diagrama:', error);
+      console.error('Error actualizando diagrama:', error);
       throw error;
     }
   }
@@ -252,12 +242,10 @@ class DiagramService {
     
     // Para IDs en formato 'local_timestamp', usar un UUID fijo
     if (id.startsWith('local_')) {
-      console.log('🔄 Convirtiendo ID local a UUID válido:', id);
       return '00000000-0000-4000-a000-000000000001';
     }
     
     // Para cualquier otro formato, generar UUID derivado del ID
-    console.log('🔄 Generando UUID para ID no válido:', id);
     return uuidv4();
   }
 
@@ -265,11 +253,9 @@ class DiagramService {
    * Get a diagram by ID
    */
   async getDiagram(id: string): Promise<DiagramData> {
-    console.log('📖 Getting diagram via nginx proxy:', id);
     
     // Asegurar UUID válido para backend
     const validUUID = this.ensureValidUUID(id);
-    console.log('🔧 ID convertido a UUID válido:', validUUID);
     
     try {
       const response = await fetch(`${this.baseURL}/api/diagrams/${validUUID}/`);
@@ -277,7 +263,6 @@ class DiagramService {
       if (!response.ok) {
         // Si no existe, crear diagrama nuevo automáticamente
         if (response.status === 404) {
-          console.log('📝 Diagram not found, creating new one...');
           const newDiagram = await this.createDiagram({
             title: `Diagram ${id.substring(0, 8)}`,
             diagram_type: 'CLASS',
@@ -296,12 +281,11 @@ class DiagramService {
         }
         
         const errorText = await response.text();
-        console.error('❌ Error response:', response.status, errorText);
+        console.error('Error response:', response.status, errorText);
         throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
-      console.log('✅ Diagram retrieved from database:', result);
       
       // CRITICAL FIX: Verificar y procesar metadata correctamente
       // Los campos last_modified y active_sessions son información adicional importante
@@ -320,7 +304,6 @@ class DiagramService {
         
         // NUEVA FUNCIONALIDAD: Capturar información de sesiones activas si existe
         if (result.active_sessions && Array.isArray(result.active_sessions)) {
-          console.log(`👥 Sesiones activas detectadas: ${result.active_sessions.length}`);
           
           // Aquí podríamos almacenar las sesiones activas en un estado global
           // para mostrarlas en la UI más tarde
@@ -344,7 +327,7 @@ class DiagramService {
       
       return result;
     } catch (error) {
-      console.error('❌ Error getting diagram:', error);
+      console.error('Error getting diagram:', error);
       throw error;
     }
   }
@@ -354,24 +337,22 @@ class DiagramService {
    */
   async listDiagrams(): Promise<DiagramData[]> {
     const sessionId = anonymousSessionService.getSessionId();
-    console.log('📋 Listando diagramas para sesión:', sessionId);
     
     try {
       const response = await fetch(`${this.baseURL}/api/diagrams/?session_id=${sessionId}`);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error response:', response.status, errorText);
+        console.error('Error response:', response.status, errorText);
         throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
-      console.log('✅ Diagramas listados exitosamente:', result);
       
       // Return results array or empty array if no results key
       return Array.isArray(result) ? result : result.results || [];
     } catch (error) {
-      console.error('❌ Error listando diagramas:', error);
+      console.error('Error listando diagramas:', error);
       throw error;
     }
   }
@@ -380,7 +361,6 @@ class DiagramService {
    * Delete a diagram
    */
   async deleteDiagram(id: string): Promise<void> {
-    console.log('🗑️ Eliminando diagrama:', id);
     
     try {
       const response = await fetch(`${this.baseURL}/api/diagrams/${id}/`, {
@@ -389,13 +369,11 @@ class DiagramService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error response:', response.status, errorText);
+        console.error('Error response:', response.status, errorText);
         throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
       }
-
-      console.log('✅ Diagrama eliminado exitosamente');
     } catch (error) {
-      console.error('❌ Error eliminando diagrama:', error);
+      console.error('Error eliminando diagrama:', error);
       throw error;
     }
   }
@@ -407,10 +385,9 @@ class DiagramService {
     try {
       const response = await fetch(`${this.baseURL}/api/health/`);
       const isHealthy = response.ok;
-      console.log(isHealthy ? '✅ Backend saludable' : '❌ Backend no disponible');
       return isHealthy;
     } catch (error) {
-      console.error('❌ Error verificando salud del backend:', error);
+      console.error('Error verificando salud del backend:', error);
       return false;
     }
   }
@@ -440,7 +417,7 @@ class DiagramService {
         });
       }
     } catch (error) {
-      console.error('❌ Error creating or updating diagram:', error);
+      console.error('Error creating or updating diagram:', error);
       throw error;
     }
   }

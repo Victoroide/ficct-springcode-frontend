@@ -80,6 +80,12 @@ export interface AIAssistantContext {
     timestamp: Date;
     details?: any;
   } | null;
+  voiceRecognitionState?: VoiceRecognitionState;
+  commandHistory?: CommandHistoryEntry[];
+  rateLimitInfo?: {
+    remaining: number;
+    resetTime: number;
+  };
 }
 
 export type AIAssistantEventType = 
@@ -120,4 +126,84 @@ export interface AIAssistantErrorDetails {
   code?: string;
   retryable: boolean;
   retryAfter?: number; // seconds
+}
+
+// Natural Language Command Processing Types
+export interface NaturalLanguageCommandRequest {
+  command: string;
+  diagram_id?: string | null;
+  current_diagram_data?: {
+    nodes: any[];
+    edges: any[];
+  } | null;
+}
+
+export interface NaturalLanguageCommandResponse {
+  success: boolean;
+  message: string;
+  elements_generated: UMLElementRecommendation[];
+  command_interpretation: string;
+  suggestions: string[];
+  rate_limit_info: {
+    remaining: number;
+    reset_time: number;
+  };
+}
+
+export interface UMLElementRecommendation {
+  id: string;
+  element_type: 'class' | 'interface' | 'enum' | 'relationship' | 'attribute' | 'method';
+  element_data: any;
+  position: {
+    x: number;
+    y: number;
+  };
+  confidence_score: number;
+  explanation: string;
+  dependencies?: string[]; // IDs of other elements this depends on
+}
+
+// Voice Recognition Types
+export interface VoiceRecognitionState {
+  isSupported: boolean;
+  isListening: boolean;
+  transcript: string;
+  confidence: number;
+  error?: string;
+}
+
+export interface VoiceCommand {
+  text: string;
+  confidence: number;
+  timestamp: Date;
+  processed: boolean;
+}
+
+// Command History Types
+export interface CommandHistoryEntry {
+  id: string;
+  command: string;
+  timestamp: Date;
+  success: boolean;
+  elementsGenerated: number;
+  processingTime: number;
+  errorMessage?: string;
+}
+
+// Preview Types
+export interface ElementPreview {
+  id: string;
+  type: 'node' | 'edge';
+  data: any;
+  style?: any;
+  isValid: boolean;
+  conflicts?: string[];
+}
+
+// Integration Types
+export interface DiagramUpdateEvent {
+  type: 'nodes_added' | 'edges_added' | 'nodes_updated' | 'edges_updated';
+  elements: any[];
+  source: 'manual' | 'ai_generated' | 'collaboration';
+  timestamp: Date;
 }

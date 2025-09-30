@@ -156,7 +156,6 @@ export function UMLDesignerPageClean({
     
     onTypingIndicator: useCallback((data) => {
       // Handle typing indicator
-      console.log('User typing:', data.user, data.isTyping);
     }, []),
     
     onUserPresence: useCallback((data) => {
@@ -216,8 +215,6 @@ export function UMLDesignerPageClean({
       try {
         setDiagramLoading(true);
         setDiagramLoadError(null);
-        
-        console.log('Loading diagram from API:', diagramId);
         const loadedDiagram = await diagramService.getDiagram(diagramId);
         
         setDiagram(loadedDiagram);
@@ -225,12 +222,10 @@ export function UMLDesignerPageClean({
         // Extract nodes and edges from diagram content
         if (loadedDiagram?.content) {
           if (Array.isArray(loadedDiagram.content.nodes)) {
-            console.log('Loading nodes from API:', loadedDiagram.content.nodes.length);
             setNodes(loadedDiagram.content.nodes);
           }
           
           if (Array.isArray(loadedDiagram.content.edges)) {
-            console.log('Loading edges from API:', loadedDiagram.content.edges.length);
             setEdges(loadedDiagram.content.edges);
           }
         }
@@ -250,8 +245,6 @@ export function UMLDesignerPageClean({
         if (localData) {
           try {
             const localDiagram = JSON.parse(localData);
-            
-            console.log('Using diagram from localStorage:', localDiagram);
             
             setNodes(localDiagram.nodes || []);
             setEdges(localDiagram.edges || []);
@@ -343,8 +336,6 @@ export function UMLDesignerPageClean({
         },
         diagram_type: 'CLASS' as const
       };
-      
-      console.log('Saving diagram to API:', diagramId, diagramData);
       const result = await diagramService.updateDiagram(diagramId, diagramData);
       
       toast({

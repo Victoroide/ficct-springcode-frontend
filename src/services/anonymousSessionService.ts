@@ -56,7 +56,6 @@ class AnonymousSessionService {
         };
         // Log solo en modo desarrollo
         if (import.meta.env.DEV) {
-          console.log('📂 Sesión cargada desde localStorage:', this.currentSession.sessionId);
         }
         return this.currentSession;
       } catch (error) {
@@ -183,7 +182,6 @@ class AnonymousSessionService {
     this.cachedSessionId = null;
     this.cachedNickname = null;
     localStorage.removeItem(this.SESSION_STORAGE_KEY);
-    console.log('🧹 Session and cache cleared');
   }
 
   /**

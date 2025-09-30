@@ -92,8 +92,6 @@ const CodeGenerator: React.FC<CodeGeneratorProps> = ({ nodes, edges }) => {
     setIsGenerating(true);
     
     try {
-      console.log('🚀 Generando código con configuración:', config);
-      console.log('📊 Nodos:', nodes.length, 'Edges:', edges.length);
       
       const generator = new SimpleCodeGenerator(config, nodes, edges);
       const result = await generator.generateCode();
@@ -101,7 +99,7 @@ const CodeGenerator: React.FC<CodeGeneratorProps> = ({ nodes, edges }) => {
       setGenerationResult(result);
       
       toast({
-        title: result.success ? '✅ Código generado' : '❌ Error en generación',
+        title: result.success ? 'Código generado' : 'Error en generación',
         description: result.success 
           ? `Se generaron ${result.files.length} archivos correctamente.`
           : result.errorMessage || 'Error en la generación de código.',
@@ -109,7 +107,7 @@ const CodeGenerator: React.FC<CodeGeneratorProps> = ({ nodes, edges }) => {
       });
       
     } catch (error) {
-      console.error('❌ Error generating code:', error);
+      console.error('Error generating code:', error);
       
       toast({
         title: 'Error de generación',
@@ -132,7 +130,6 @@ const CodeGenerator: React.FC<CodeGeneratorProps> = ({ nodes, edges }) => {
     }
     
     try {
-      console.log('Iniciando descarga ZIP...', generationResult);
       await downloadService.downloadProject(generationResult, config.name);
       
       toast({

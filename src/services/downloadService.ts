@@ -25,7 +25,6 @@ export class DownloadService {
 
       // Organizar archivos en la estructura Maven correcta
       result.files.forEach(file => {
-        console.log(`Agregando archivo: ${file.path}`);
         
         // Determinar la ruta correcta según el tipo de archivo
         const correctPath = this.getCorrectMavenPath(file, projectName);
@@ -42,8 +41,6 @@ export class DownloadService {
           level: 6
         }
       });
-
-      console.log('ZIP generado exitosamente:', zipBlob.size, 'bytes');
       return zipBlob;
 
     } catch (error) {
@@ -59,8 +56,6 @@ export class DownloadService {
     const cleanProjectName = projectName.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
     const basePackage = `com.example.${cleanProjectName}`;
     const packagePath = basePackage.replace(/\./g, '/');
-
-    console.log(`Procesando archivo: ${file.path}, tipo: ${file.language}`);
 
     // Archivos de configuración en la raíz
     if (file.path === 'pom.xml' || file.path === 'README.md') {
@@ -254,7 +249,6 @@ Generated with UML SpringBoot Code Generator
     projectName: string = 'springboot-project'
   ): Promise<void> {
     try {
-      console.log('Iniciando descarga de proyecto ZIP...');
       
       // Crear ZIP real con JSZip
       const zipBlob = await this.createProjectZip(result, projectName);
@@ -263,11 +257,8 @@ Generated with UML SpringBoot Code Generator
       // Descargar el archivo ZIP
       this.downloadFile(zipBlob, fileName);
       
-      console.log(`✅ Proyecto ZIP descargado exitosamente: ${fileName}`);
-      console.log(`📁 Tamaño: ${(zipBlob.size / 1024).toFixed(1)} KB`);
-      
     } catch (error) {
-      console.error('❌ Error al descargar proyecto:', error);
+      console.error('Error al descargar proyecto:', error);
       throw new Error(`No se pudo descargar el proyecto: ${error}`);
     }
   }

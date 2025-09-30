@@ -28,7 +28,6 @@ class AnonymousApiClient {
     this.retryAttempts = env.apiConfig.retryAttempts
     
     if (import.meta.env.DEV) {
-      console.log('🔧 AnonymousApiClient inicializado con URL base:', this.baseUrl);
     }
   }
 
@@ -49,8 +48,6 @@ class AnonymousApiClient {
     
     // Debug logging en desarrollo
     if (import.meta.env.DEV) {
-      console.log(`🌐 API Request: ${method} ${url}`);
-      console.log('📄 Endpoint original:', endpoint, '→ Normalizado:', normalizedEndpoint);
     }
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeout)

@@ -20,7 +20,6 @@ export class SimpleCodeGenerator {
    */
   async generateCode(): Promise<CodeGenerationResult> {
     try {
-      console.log('🚀 Iniciando generación de código SpringBoot...');
       
       const files: GeneratedFile[] = [];
       const cleanProjectName = this.config.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
@@ -41,7 +40,6 @@ export class SimpleCodeGenerator {
       );
       classNodes.forEach(node => {
         const className = this.formatClassName(node.data.label || 'Entity');
-        console.log(`📝 Generando archivos para: ${className}`);
         
         // Generar archivos para cada clase
         files.push(this.generateEntity(className, node.data));
@@ -50,8 +48,6 @@ export class SimpleCodeGenerator {
         files.push(this.generateService(className, node.data));
         files.push(this.generateController(className));
       });
-
-      console.log(`✅ Generados ${files.length} archivos exitosamente`);
 
       return {
         success: true,
@@ -66,7 +62,7 @@ export class SimpleCodeGenerator {
       };
 
     } catch (error) {
-      console.error('❌ Error generando código:', error);
+      console.error('Error generando código:', error);
       return {
         success: false,
         files: [],

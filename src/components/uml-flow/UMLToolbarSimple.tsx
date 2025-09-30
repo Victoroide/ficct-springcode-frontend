@@ -3,9 +3,11 @@
  * Versión simplificada del toolbar para UML Editor Fixed
  */
 
-import React, { useCallback } from 'react';
-import { MousePointer, Move, Box, Code, Database, Trash, Save, FileCode, Brain } from 'lucide-react';
+import React, { useCallback, useState } from 'react';
+import { MousePointer, Move, Box, Code, Database, Trash, Save, FileCode, Brain, Lock } from 'lucide-react';
 import CodeGenerator from './CodeGenerator';
+import { useAIAuthentication } from '@/hooks/useAIAuthentication';
+import { AIPasswordModal } from '../ai-assistant/AIPasswordModal';
 import type { EditorMode } from './types';
 
 interface UMLToolbarSimpleProps {
@@ -38,6 +40,9 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
   onToggleAIAssistant,
   isAIAssistantOpen
 }) => {
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const { isAuthenticated, authenticateUser, attempts, maxAttempts } = useAIAuthentication();
+
   const handleCreateNode = (type: string) => {
     const position = { x: 100, y: 100 };
     
@@ -55,6 +60,23 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
     }
   };
 
+  const handleAIButtonClick = () => {
+    if (!isAuthenticated) {
+      setShowPasswordModal(true);
+    } else {
+      onToggleAIAssistant?.();
+    }
+  };
+
+  const handleAuthentication = (password: string) => {
+    const success = authenticateUser(password);
+    if (success) {
+      setShowPasswordModal(false);
+      onToggleAIAssistant?.();
+    }
+    return success;
+  };
+
   return (
     <div className="uml-toolbar">
       {/* Selection Tools - RESTORED Professional Group */}
@@ -65,7 +87,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
         <button
           className={`${mode === 'select' ? 'bg-blue-600 text-white' : ''}`}
           onClick={() => onModeChange('select')}
-          title="Select Tool (V)"
+          title="Seleccionar elementos"
         >
           <MousePointer className="h-5 w-5" />
         </button>
@@ -73,7 +95,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
         <button
           className={`${mode === 'pan' ? 'bg-blue-600 text-white' : ''}`}
           onClick={() => onModeChange('pan')}
-          title="Pan Tool (H)"
+          title="Mover canvas"
         >
           <Move className="h-5 w-5" />
         </button>
@@ -90,7 +112,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
             onModeChange('class');
             handleCreateNode('class');
           }}
-          title="Add Class (C)"
+          title="Crear clase"
         >
           <Box className="h-5 w-5" />
         </button>
@@ -101,7 +123,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
             onModeChange('interface');
             handleCreateNode('interface');
           }}
-          title="Add Interface (I)"
+          title="Crear interfaz"
         >
           <Code className="h-5 w-5" />
         </button>
@@ -112,7 +134,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
             onModeChange('enum');
             handleCreateNode('enum');
           }}
-          title="Add Enum (E)"
+          title="Crear enumeración"
         >
           <Database className="h-5 w-5" />
         </button>
@@ -127,7 +149,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
           <button
             className="text-red-600 hover:bg-red-50"
             onClick={onDeleteSelected}
-            title="Delete Selected (Del)"
+            title="Eliminar selección"
           >
             <Trash className="h-5 w-5" />
           </button>
@@ -136,7 +158,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
         {onSave && (
           <button
             onClick={onSave}
-            title="Save Diagram (Ctrl+S)"
+            title="Guardar diagrama"
           >
             <Save className="h-5 w-5" />
           </button>
@@ -144,14 +166,36 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
         
         {onToggleAIAssistant && (
           <button
-            className={`${isAIAssistantOpen ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}
-            onClick={onToggleAIAssistant}
-            title="AI Assistant (Ctrl+H)"
+            className={`relative ${
+              isAIAssistantOpen 
+                ? 'bg-blue-600 text-white' 
+                : isAuthenticated 
+                  ? 'text-blue-600 hover:bg-blue-50' 
+                  : 'text-gray-400 hover:bg-gray-50'
+            }`}
+            onClick={handleAIButtonClick}
+            title={isAuthenticated ? 'Asistente de IA' : 'Asistente de IA (Requiere contraseña)'}
           >
-            <Brain className="h-5 w-5" />
+            {isAuthenticated ? (
+              <Brain className="h-5 w-5" />
+            ) : (
+              <div className="relative">
+                <Brain className="h-5 w-5 opacity-50" />
+                <Lock className="h-3 w-3 absolute -bottom-1 -right-1 bg-white rounded-full" />
+              </div>
+            )}
           </button>
         )}
       </div>
+
+      {/* Password Modal */}
+      <AIPasswordModal
+        isOpen={showPasswordModal}
+        onAuthenticate={handleAuthentication}
+        onClose={() => setShowPasswordModal(false)}
+        attempts={attempts}
+        maxAttempts={maxAttempts}
+      />
       
       {/* Code Generation - RESTORED Professional Group */}
       {nodes.length > 0 && (
