@@ -89,6 +89,20 @@ export const handleAuthError = (error: any, dispatch: any, logout: () => any) =>
 export const setupGlobalErrorHandlers = () => {
   window.addEventListener('unhandledrejection', (event) => {
     const error = event.reason;
+    
+    // Ignore WebSocket connection errors - they're handled gracefully by useWebSocket
+    // These are expected when the backend is offline and shouldn't show error toasts
+    const errorMessage = error?.message || String(error);
+    if (
+      errorMessage.includes('WebSocket') || 
+      errorMessage.includes('ws://') ||
+      errorMessage.includes('connection') && errorMessage.includes('closed')
+    ) {
+      console.info('WebSocket connection issue detected (backend may be offline) - ignoring toast notification');
+      event.preventDefault(); // Prevent default unhandled rejection behavior
+      return;
+    }
+    
     logErrorWithContext(
       error, 
       'Global', 
@@ -106,6 +120,19 @@ export const setupGlobalErrorHandlers = () => {
 
   window.addEventListener('error', (event) => {
     const error = event.error;
+    
+    // Ignore WebSocket-related errors
+    const errorMessage = error?.message || event.message || '';
+    if (
+      errorMessage.includes('WebSocket') || 
+      errorMessage.includes('ws://') ||
+      (errorMessage.includes('connection') && errorMessage.includes('closed'))
+    ) {
+      console.info('WebSocket error detected - ignoring toast notification');
+      event.preventDefault();
+      return;
+    }
+    
     logErrorWithContext(
       error, 
       'Global', 

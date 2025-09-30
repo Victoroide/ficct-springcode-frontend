@@ -154,6 +154,7 @@ const CodeGenerator: React.FC<CodeGeneratorProps> = ({ nodes, edges }) => {
         <Button 
           onClick={() => setIsOpen(true)} 
           className="bg-green-600 hover:bg-green-700 text-white"
+          title="Generate SpringBoot Code - Generate Java code from your UML diagram"
         >
           <Download className="h-4 w-4 mr-2" />
           Generar Código

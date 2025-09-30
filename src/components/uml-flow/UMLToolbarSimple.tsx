@@ -87,7 +87,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
         <button
           className={`${mode === 'select' ? 'bg-blue-600 text-white' : ''}`}
           onClick={() => onModeChange('select')}
-          title="Seleccionar elementos"
+          title="Select elements - Click to select nodes and relationships"
         >
           <MousePointer className="h-5 w-5" />
         </button>
@@ -95,7 +95,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
         <button
           className={`${mode === 'pan' ? 'bg-blue-600 text-white' : ''}`}
           onClick={() => onModeChange('pan')}
-          title="Mover canvas"
+          title="Pan canvas - Drag to move the diagram view"
         >
           <Move className="h-5 w-5" />
         </button>
@@ -112,7 +112,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
             onModeChange('class');
             handleCreateNode('class');
           }}
-          title="Crear clase"
+          title="Create Class - Add a new UML class to the diagram"
         >
           <Box className="h-5 w-5" />
         </button>
@@ -123,7 +123,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
             onModeChange('interface');
             handleCreateNode('interface');
           }}
-          title="Crear interfaz"
+          title="Create Interface - Add a new UML interface to the diagram"
         >
           <Code className="h-5 w-5" />
         </button>
@@ -134,7 +134,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
             onModeChange('enum');
             handleCreateNode('enum');
           }}
-          title="Crear enumeración"
+          title="Create Enum - Add a new enumeration to the diagram"
         >
           <Database className="h-5 w-5" />
         </button>
@@ -149,7 +149,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
           <button
             className="text-red-600 hover:bg-red-50"
             onClick={onDeleteSelected}
-            title="Eliminar selección"
+            title="Delete Selection - Remove selected nodes and relationships"
           >
             <Trash className="h-5 w-5" />
           </button>
@@ -158,7 +158,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
         {onSave && (
           <button
             onClick={onSave}
-            title="Guardar diagrama"
+            title="Save Diagram - Save your diagram to the server"
           >
             <Save className="h-5 w-5" />
           </button>
@@ -174,7 +174,7 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
                   : 'text-gray-400 hover:bg-gray-50'
             }`}
             onClick={handleAIButtonClick}
-            title={isAuthenticated ? 'Asistente de IA' : 'Asistente de IA (Requiere contraseña)'}
+            title={isAuthenticated ? 'AI Assistant - Get help designing your UML diagram' : 'AI Assistant - Requires password to activate'}
           >
             {isAuthenticated ? (
               <Brain className="h-5 w-5" />

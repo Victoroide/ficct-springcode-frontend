@@ -132,8 +132,17 @@ export const useWebSocket = ({
       };
       
       ws.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        // Silently log WebSocket errors - they're expected when backend is offline
+        // This prevents showing error toasts to users when the WebSocket simply can't connect
+        console.warn('WebSocket connection error (backend may be offline):', {
+          diagramId,
+          readyState: ws.current?.readyState,
+          url: wsUrl
+        });
         setIsConnected(false);
+        
+        // Prevent this error from propagating as an unhandled rejection
+        // The onclose handler will manage reconnection attempts
       };
       
     } catch (error) {

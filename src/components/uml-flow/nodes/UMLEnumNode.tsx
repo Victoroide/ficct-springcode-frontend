@@ -8,11 +8,63 @@ import { Handle, Position } from 'reactflow';
 import type { NodeProps } from 'reactflow';
 import type { UMLNodeData, UMLEnumValue } from '../types';
 
-const UMLEnumNode: React.FC<NodeProps<UMLNodeData>> = ({ data, isConnectable, selected }) => {
+interface UMLEnumNodeProps extends NodeProps<UMLNodeData> {
+  onEdit?: (nodeData: UMLNodeData) => void;
+  onUpdateLabel?: (nodeId: string, newLabel: string) => void;
+}
+
+const UMLEnumNode: React.FC<UMLEnumNodeProps> = ({ id, data, isConnectable, selected, onEdit, onUpdateLabel }) => {
+  const [isEditingName, setIsEditingName] = React.useState(false);
+  const [editedName, setEditedName] = React.useState(data.label || '');
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  
   const enumValues = data.enumValues || [];
 
+  React.useEffect(() => {
+    if (isEditingName && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditingName]);
+
+  const handleDoubleClick = () => {
+    if (onEdit) {
+      onEdit(data);
+    }
+  };
+
+  const handleNameClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingName(true);
+    setEditedName(data.label || '');
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditedName(e.target.value);
+  };
+
+  const handleNameBlur = () => {
+    setIsEditingName(false);
+    if (editedName.trim() && editedName !== data.label && onUpdateLabel) {
+      onUpdateLabel(id, editedName.trim());
+    }
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      handleNameBlur();
+    } else if (e.key === 'Escape') {
+      setIsEditingName(false);
+      setEditedName(data.label || '');
+    }
+  };
+
   return (
-    <div className={`uml-node enum-node ${selected ? 'selected' : ''}`}>
+    <div 
+      className={`uml-node enum-node ${selected ? 'selected' : ''}`}
+      onDoubleClick={handleDoubleClick}
+    >
       {/* Connection handles */}
       <Handle
         type="target"
@@ -46,7 +98,26 @@ const UMLEnumNode: React.FC<NodeProps<UMLNodeData>> = ({ data, isConnectable, se
       {/* Enum name header */}
       <div className="uml-node-header enum-header">
         <div className="uml-node-stereotype">&lt;&lt;enumeration&gt;&gt;</div>
-        <div className="uml-node-title">{data.label || 'Enum'}</div>
+        {isEditingName ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editedName}
+            onChange={handleNameChange}
+            onBlur={handleNameBlur}
+            onKeyDown={handleNameKeyDown}
+            className="uml-node-title-input"
+            placeholder="Enter enum name"
+          />
+        ) : (
+          <div 
+            className="uml-node-title editable-title" 
+            onClick={handleNameClick}
+            title="Click to edit name"
+          >
+            {data.label || 'Enum'}
+          </div>
+        )}
       </div>
 
       {/* Enum values section */}

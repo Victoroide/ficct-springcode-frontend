@@ -26,15 +26,54 @@ const getVisibilitySymbol = (visibility: UMLVisibility): string => {
 
 interface UMLClassNodeProps extends NodeProps<UMLNodeData> {
   onEdit?: (nodeData: UMLNodeData) => void;
+  onUpdateLabel?: (nodeId: string, newLabel: string) => void;
 }
 
-const UMLClassNode: React.FC<UMLClassNodeProps> = ({ data, isConnectable, selected, onEdit }) => {
+const UMLClassNode: React.FC<UMLClassNodeProps> = ({ id, data, isConnectable, selected, onEdit, onUpdateLabel }) => {
+  const [isEditingName, setIsEditingName] = React.useState(false);
+  const [editedName, setEditedName] = React.useState(data.label || '');
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  
   const attributes = data.attributes || [];
   const methods = data.methods || [];
+
+  React.useEffect(() => {
+    if (isEditingName && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditingName]);
 
   const handleDoubleClick = () => {
     if (onEdit) {
       onEdit(data);
+    }
+  };
+
+  const handleNameClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingName(true);
+    setEditedName(data.label || '');
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditedName(e.target.value);
+  };
+
+  const handleNameBlur = () => {
+    setIsEditingName(false);
+    if (editedName.trim() && editedName !== data.label && onUpdateLabel) {
+      onUpdateLabel(id, editedName.trim());
+    }
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      handleNameBlur();
+    } else if (e.key === 'Escape') {
+      setIsEditingName(false);
+      setEditedName(data.label || '');
     }
   };
 
@@ -247,7 +286,26 @@ const UMLClassNode: React.FC<UMLClassNodeProps> = ({ data, isConnectable, select
       {/* Class name header */}
       <div className="uml-node-header">
         {data.isAbstract && <div className="uml-node-stereotype">&lt;&lt;abstract&gt;&gt;</div>}
-        <div className="uml-node-title">{data.label || 'Class'}</div>
+        {isEditingName ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editedName}
+            onChange={handleNameChange}
+            onBlur={handleNameBlur}
+            onKeyDown={handleNameKeyDown}
+            className="uml-node-title-input"
+            placeholder="Enter class name"
+          />
+        ) : (
+          <div 
+            className="uml-node-title editable-title" 
+            onClick={handleNameClick}
+            title="Click to edit name"
+          >
+            {data.label || 'Class'}
+          </div>
+        )}
       </div>
 
       {/* Attributes section - Always visible */}

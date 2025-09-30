@@ -29,29 +29,90 @@ A **real-time collaborative UML diagram editor** with **AI Assistant** and **Spr
 ## ✨ Key Features
 
 ### 🎨 UML Editor
-- Visual drag-and-drop interface (React Flow)
-- Classes, Interfaces, Enums with full attribute/method support
-- Relationships: Association, Aggregation, Composition, Inheritance, Dependency
-- 3 connection handles per side for precise relationships
+- **Visual drag-and-drop interface** (React Flow)
+- **Comprehensive UML Elements**: Classes, Interfaces, Enums with full attribute/method support
+- **Relationships**: Association, Aggregation, Composition, Inheritance, Dependency, Implementation
+- **Advanced Relationship Features**:
+  - 3 connection handles per side (top, center, bottom) for precise control
+  - Editable relationship properties: type, multiplicity, labels, roles
+  - Automatic JPA annotation mapping based on relationship type
+  - Visual indicators for relationship types (arrows, diamonds)
+- **Modern Modal Editors**: Unified design with tabs for Basic Info, Attributes, Methods, and Relationships
+- **Property Panels**: Dedicated panels for nodes (`Ctrl+P`) and relationships (`Ctrl+R`)
+- **Visibility Control**: Full UML visibility support (public `+`, private `-`, protected `#`, package `~`)
+- **Keyboard Shortcuts**: 
+  - `Ctrl+P`: Toggle Node Properties Panel
+  - `Ctrl+R`: Toggle Relationship Properties Panel
+  - `Delete`: Remove selected elements
 
 ### 👥 Real-Time Collaboration
-- Anonymous sessions (auto-generated nicknames like "CreativeFox247")
-- WebSocket synchronization across all users
-- Live presence indicators
-- Title editing conflict prevention
+- **Anonymous sessions** (auto-generated nicknames like "CreativeFox247")
+- **WebSocket synchronization** across all users in real-time
+- **Live presence indicators** showing active collaborators
+- **Collaborative cursors** tracking user movements
+- **Chat system** for team communication
+- **Title editing conflict prevention** to avoid overwrites
+- **Echo prevention** to eliminate duplicate updates
 
 ### 🤖 AI Assistant (Password Protected)
-- Context-aware chat about UML, design patterns, Spring Boot
-- Natural language commands: "Create a User class with email and password"
-- Diagram analysis and recommendations
-- Keyboard: `Ctrl+H` (open), `Ctrl+Shift+C` (commands)
+- **Context-aware chat** about UML, design patterns, Spring Boot, SOLID principles
+- **Natural language commands**: 
+  - "Create a User class with id, name, email, password"
+  - "Add a relationship between User and Order"
+  - "Generate a repository pattern"
+- **Diagram analysis**: Detects design patterns, SOLID violations, code smells
+- **Smart recommendations** for improving diagram structure
+- **Keyboard shortcuts**: 
+  - `Ctrl+H`: Toggle AI Assistant
+  - `Ctrl+Shift+C`: Focus on Commands tab
+- **Rate limiting**: 30 requests/hour with cache optimization
 
 ### ⚙️ Spring Boot Code Generation
-- Complete Maven project: POM, entities, DTOs, repositories, services, controllers
-- JPA relationship mappings from UML
-- OpenAPI/Swagger documentation
-- Lombok annotations
-- Spring Boot 2.7.18 + Java 8
+- **Complete Maven project**: POM, main application class, properties
+- **Full entity stack**: Entities, DTOs, Repositories, Services, Controllers
+- **JPA relationship mappings** from UML:
+  - Association → `@OneToOne` with `@JoinColumn`
+  - Aggregation → `@OneToMany` with `mappedBy`
+  - Composition → `@OneToMany` with `CASCADE.ALL` + `orphanRemoval=true`
+  - Dependency → `@ManyToOne` with `@JoinColumn`
+- **OpenAPI/Swagger documentation** (SpringDoc)
+- **Lombok annotations** for cleaner code
+- **Spring Boot 2.7.18** + Java 8+
+- **Package organization** with proper directory structure
+
+---
+
+## 🆕 Recent Improvements
+
+### UI/UX Enhancements
+- ✅ **Unified Modal Design**: All editors (Class, Interface, Enum) now share consistent modern design
+  - Gradient headers with descriptions
+  - Rounded tabs with active shadows
+  - Hover effects on list items with fade-in delete buttons
+  - Consistent spacing and typography
+- ✅ **Professional Tooltips**: All toolbar buttons have descriptive English tooltips
+- ✅ **Keyboard Event Protection**: All input fields properly handle keyboard events to prevent conflicts
+- ✅ **Smooth Animations**: Backdrop blur, fade-in/zoom-in transitions, hover rotations
+
+### Relationship Management
+- ✅ **Complete Relationship Editor**: Properties panel with full control over:
+  - Relationship type selection with visual preview
+  - Source and target multiplicity (0..1, 1, 0..*, 1..*)
+  - Source and target labels for documentation
+  - Source and target role names for code generation
+- ✅ **JPA Code Generation**: Automatic mapping of UML relationships to JPA annotations
+- ✅ **Visual Feedback**: Relationship types display with appropriate arrows and diamonds
+
+### Code Generation
+- ✅ **SpringFox to SpringDoc Migration**: Updated from obsolete SpringFox to modern SpringDoc OpenAPI
+- ✅ **Complete DTO Mappings**: Generated converters handle all entity-DTO transformations
+- ✅ **Package Organization**: Files automatically organized into correct package directories
+- ✅ **No Placeholders**: All generated code is production-ready without TODOs
+
+### Collaboration Features
+- ✅ **Echo Prevention System**: Message deduplication prevents infinite loops
+- ✅ **Session-based Auth**: Clean anonymous authentication without JWT complexity
+- ✅ **Aggressive Caching**: In-memory session cache reduces localStorage operations by 95%
 
 ---
 

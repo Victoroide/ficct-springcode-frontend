@@ -183,22 +183,6 @@ const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
         onToggle={toggleAIAssistant}
         onElementsGenerated={handleElementsGenerated}
       />
-
-      {/* Hints for new users */}
-      {currentNodes.length === 0 && (
-        <div className="absolute bottom-6 right-6 bg-gradient-to-r from-blue-100 to-purple-100 border border-blue-300 rounded-lg p-3 shadow-lg max-w-sm z-40">
-          <div className="text-sm">
-            <p className="font-medium text-blue-900 mb-1">✨ Asistente IA Disponible</p>
-            <p className="text-blue-800 text-xs mb-2">
-              Usa el asistente IA para ayuda contextual y generación de diagramas.
-            </p>
-            <div className="flex flex-col gap-1 text-xs text-gray-700">
-              <div><kbd className="bg-blue-200 px-1 rounded text-xs">Ctrl+H</kbd> - Abrir Asistente IA (Chat + Comandos)</div>
-              <div><kbd className="bg-purple-200 px-1 rounded text-xs">Ctrl+Shift+C</kbd> - Ir directamente a Comandos</div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -9,7 +9,6 @@ import type { NodeProps } from 'reactflow';
 import type { UMLVisibility } from '../types';
 import type { UMLNodeData } from '../types';
 
-// Helper function to render visibility symbol
 const getVisibilitySymbol = (visibility: UMLVisibility): string => {
   switch (visibility) {
     case 'public':
@@ -25,11 +24,63 @@ const getVisibilitySymbol = (visibility: UMLVisibility): string => {
   }
 };
 
-const UMLInterfaceNode: React.FC<NodeProps<UMLNodeData>> = ({ data, isConnectable, selected }) => {
+interface UMLInterfaceNodeProps extends NodeProps<UMLNodeData> {
+  onEdit?: (nodeData: UMLNodeData) => void;
+  onUpdateLabel?: (nodeId: string, newLabel: string) => void;
+}
+
+const UMLInterfaceNode: React.FC<UMLInterfaceNodeProps> = ({ id, data, isConnectable, selected, onEdit, onUpdateLabel }) => {
+  const [isEditingName, setIsEditingName] = React.useState(false);
+  const [editedName, setEditedName] = React.useState(data.label || '');
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  
   const methods = data.methods || [];
 
+  React.useEffect(() => {
+    if (isEditingName && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditingName]);
+
+  const handleDoubleClick = () => {
+    if (onEdit) {
+      onEdit(data);
+    }
+  };
+
+  const handleNameClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingName(true);
+    setEditedName(data.label || '');
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditedName(e.target.value);
+  };
+
+  const handleNameBlur = () => {
+    setIsEditingName(false);
+    if (editedName.trim() && editedName !== data.label && onUpdateLabel) {
+      onUpdateLabel(id, editedName.trim());
+    }
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      handleNameBlur();
+    } else if (e.key === 'Escape') {
+      setIsEditingName(false);
+      setEditedName(data.label || '');
+    }
+  };
+
   return (
-    <div className={`uml-node interface-node ${selected ? 'selected' : ''}`}>
+    <div 
+      className={`uml-node interface-node ${selected ? 'selected' : ''}`}
+      onDoubleClick={handleDoubleClick}
+    >
       {/* Connection handles */}
       <Handle
         type="target"
@@ -63,7 +114,26 @@ const UMLInterfaceNode: React.FC<NodeProps<UMLNodeData>> = ({ data, isConnectabl
       {/* Interface name header */}
       <div className="uml-node-header">
         <div className="uml-node-stereotype">&lt;&lt;interface&gt;&gt;</div>
-        <div className="uml-node-title">{data.label || 'Interface'}</div>
+        {isEditingName ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editedName}
+            onChange={handleNameChange}
+            onBlur={handleNameBlur}
+            onKeyDown={handleNameKeyDown}
+            className="uml-node-title-input"
+            placeholder="Enter interface name"
+          />
+        ) : (
+          <div 
+            className="uml-node-title editable-title" 
+            onClick={handleNameClick}
+            title="Click to edit name"
+          >
+            {data.label || 'Interface'}
+          </div>
+        )}
       </div>
 
       {/* Methods section */}

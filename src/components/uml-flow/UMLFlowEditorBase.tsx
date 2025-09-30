@@ -25,6 +25,8 @@ import UMLNodePanel from './panels/UMLNodePanel';
 import UMLRelationshipPanel from './panels/UMLRelationshipPanel';
 import UMLEnumPanel from './panels/UMLEnumPanel';
 import UMLClassEditor from './modals/UMLClassEditor';
+import UMLInterfaceEditor from './modals/UMLInterfaceEditor';
+import UMLEnumEditor from './modals/UMLEnumEditor';
 
 // Import types and utility functions
 import {
@@ -50,6 +52,14 @@ import './styles/uml-flow.css';
 const EDGE_TYPES = {
   umlRelationship: UMLRelationshipEdge,
   attributeRelationship: AttributeRelationshipEdge,
+} as const;
+
+// Static node type definitions (prevent re-creation)
+const NODE_TYPES = {
+  class: UMLClassNode,
+  interface: UMLInterfaceNode,
+  enum: UMLEnumNode,
+  attributeHandle: AttributeHandleNode
 } as const;
 
 export interface UMLFlowEditorFixedProps {
@@ -118,6 +128,8 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
   const [showEnumPanel, setShowEnumPanel] = useState(false);
   const [showRelationshipPanel, setShowRelationshipPanel] = useState(false);
   const [showClassEditor, setShowClassEditor] = useState(false);
+  const [showInterfaceEditor, setShowInterfaceEditor] = useState(false);
+  const [showEnumEditor, setShowEnumEditor] = useState(false);
   const [showPropertiesPanel, setShowPropertiesPanel] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>('select');
 
@@ -406,8 +418,28 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
     setShowClassEditor(true);
   }, []);
 
+  const openInterfaceEditor = useCallback((nodeData: UMLNodeData) => {
+    setEditingNodeData(nodeData);
+    setShowInterfaceEditor(true);
+  }, []);
+
+  const openEnumEditor = useCallback((nodeData: UMLNodeData) => {
+    setEditingNodeData(nodeData);
+    setShowEnumEditor(true);
+  }, []);
+
   const closeClassEditor = useCallback(() => {
     setShowClassEditor(false);
+    setEditingNodeData(null);
+  }, []);
+
+  const closeInterfaceEditor = useCallback(() => {
+    setShowInterfaceEditor(false);
+    setEditingNodeData(null);
+  }, []);
+
+  const closeEnumEditor = useCallback(() => {
+    setShowEnumEditor(false);
     setEditingNodeData(null);
   }, []);
 
@@ -433,6 +465,50 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
     closeClassEditor();
   }, [nodes, edges, editingNodeData, onUpdateFlowData, closeClassEditor]);
 
+  const handleInterfaceEditorSave = useCallback((updatedData: UMLNodeData) => {
+    if (!editingNodeData) return;
+
+    const updatedNodes = nodes.map(node => {
+      if (node.data === editingNodeData) {
+        return {
+          ...node,
+          data: updatedData
+        };
+      }
+      return node;
+    });
+
+    setNodes(updatedNodes);
+
+    if (onUpdateFlowData) {
+      onUpdateFlowData(updatedNodes, edges);
+    }
+
+    closeInterfaceEditor();
+  }, [nodes, edges, editingNodeData, onUpdateFlowData, closeInterfaceEditor]);
+
+  const handleEnumEditorSave = useCallback((updatedData: UMLNodeData) => {
+    if (!editingNodeData) return;
+
+    const updatedNodes = nodes.map(node => {
+      if (node.data === editingNodeData) {
+        return {
+          ...node,
+          data: updatedData
+        };
+      }
+      return node;
+    });
+
+    setNodes(updatedNodes);
+
+    if (onUpdateFlowData) {
+      onUpdateFlowData(updatedNodes, edges);
+    }
+
+    closeEnumEditor();
+  }, [nodes, edges, editingNodeData, onUpdateFlowData, closeEnumEditor]);
+
   // Code generator is now self-contained - no handlers needed
 
   // Chat handlers - TASK 1 FIX: Real WebSocket integration
@@ -450,25 +526,52 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
     }
   }, [onSendTypingIndicator]);
 
-  // Node types with onEdit handler for class nodes - FIXED: Correct type mapping
-  const nodeTypes = useMemo(() => ({
-    class: (props: NodeProps<UMLNodeData>) => <UMLClassNode {...props} onEdit={openClassEditor} />,
-    interface: UMLInterfaceNode,
-    enum: UMLEnumNode,
-    attributeHandle: AttributeHandleNode
-  }), [openClassEditor]);
+  const handleNodeLabelUpdate = useCallback((nodeId: string, newLabel: string) => {
+    setNodes(prevNodes => {
+      const updatedNodes = prevNodes.map(node =>
+        node.id === nodeId
+          ? { ...node, data: { ...node.data, label: newLabel } }
+          : node
+      );
+      
+      // Notify parent with updated nodes
+      if (onUpdateFlowData) {
+        setEdges(prevEdges => {
+          onUpdateFlowData(updatedNodes, prevEdges);
+          return prevEdges;
+        });
+      }
+      
+      return updatedNodes;
+    });
+  }, [onUpdateFlowData]);
+
+  // Pass handlers via node data to avoid recreating nodeTypes
+  // This fixes React Flow warning about recreating nodeTypes
+  const enhancedNodes = useMemo(() => {
+    return nodes.map(node => ({
+      ...node,
+      data: {
+        ...node.data,
+        onEdit: node.type === 'class' ? openClassEditor :
+                node.type === 'interface' ? openInterfaceEditor :
+                node.type === 'enum' ? openEnumEditor : undefined,
+        onUpdateLabel: handleNodeLabelUpdate
+      }
+    }));
+  }, [nodes, openClassEditor, openInterfaceEditor, openEnumEditor, handleNodeLabelUpdate]);
 
   return (
     <div className="w-full h-full" ref={reactFlowWrapper}>
       <ReactFlow
-        nodes={nodes}
+        nodes={enhancedNodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}
-        nodeTypes={nodeTypes}
+        nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
         fitView
         attributionPosition="bottom-left"
@@ -558,6 +661,26 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
           nodeData={editingNodeData}
           onClose={closeClassEditor}
           onSave={handleClassEditorSave}
+        />
+      )}
+
+      {/* Interface Editor Modal */}
+      {showInterfaceEditor && editingNodeData && (
+        <UMLInterfaceEditor
+          isOpen={showInterfaceEditor}
+          nodeData={editingNodeData}
+          onClose={closeInterfaceEditor}
+          onSave={handleInterfaceEditorSave}
+        />
+      )}
+
+      {/* Enum Editor Modal */}
+      {showEnumEditor && editingNodeData && (
+        <UMLEnumEditor
+          isOpen={showEnumEditor}
+          nodeData={editingNodeData}
+          onClose={closeEnumEditor}
+          onSave={handleEnumEditorSave}
         />
       )}
     </div>
