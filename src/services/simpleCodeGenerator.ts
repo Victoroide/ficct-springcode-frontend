@@ -331,13 +331,31 @@ public class OpenAPIConfig {
   }
 
   /**
-   * Generar Entity
+   * Generate JPA Entity Class
+   * 
+   * CRITICAL FIX: Filters out system-generated fields (id, createdAt, updatedAt) from user attributes
+   * to prevent duplicate field declarations. These fields are automatically added to every entity.
+   * 
+   * Generated structure:
+   * - @Id field: Long id (auto-generated, ALWAYS present)
+   * - User attributes: from UML diagram (FILTERED to exclude id, createdAt, updatedAt)
+   * - Timestamps: createdAt, updatedAt (auto-generated, ALWAYS present)
+   * 
+   * @param className The name of the Java class (e.g., "Pet", "Owner")
+   * @param nodeData UML node data containing attributes array
+   * @returns GeneratedFile object with Entity source code
    */
   private generateEntity(className: string, nodeData: any): GeneratedFile {
     const cleanProjectName = this.config.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
     const packageName = `${this.config.groupId}.${cleanProjectName}.entity`;
     
-    const attributes = nodeData.properties || nodeData.attributes || [];
+    // CRITICAL FIX: Filter out system-generated fields (id, createdAt, updatedAt)
+    // These are added automatically and must not be duplicated
+    const allAttributes = nodeData.properties || nodeData.attributes || [];
+    const attributes = allAttributes.filter((attr: any) => {
+      const name = attr.name?.toLowerCase();
+      return name !== 'id' && name !== 'createdat' && name !== 'updatedat';
+    });
     
     // Obtener todas las relaciones entre atributos
     const relationshipMap = this.findAttributeRelationships();
@@ -452,8 +470,7 @@ public class ${className} {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
-${attributeEntries.join('\n\n')}
+${attributeEntries.length > 0 ? '\n\n' + attributeEntries.join('\n\n') : ''}
     
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -470,13 +487,33 @@ ${attributeEntries.join('\n\n')}
   }
 
   /**
-   * Generar DTO
+   * Generate DTO (Data Transfer Object) Class
+   * 
+   * CRITICAL FIX: Filters out system-generated fields (id, createdAt, updatedAt) from user attributes.
+   * The 'id' field is hard-coded in the template and must not be duplicated.
+   * Timestamps are NOT included in DTOs (they're auto-managed by the backend).
+   * 
+   * Generated structure:
+   * - id field: Long id (hard-coded, ALWAYS present)
+   * - User attributes: from UML diagram (FILTERED to exclude id, createdAt, updatedAt)
+   * - Validation annotations: @NotNull, @NotBlank based on field type
+   * - OpenAPI docs: @Schema annotations for Swagger UI
+   * 
+   * @param className The name of the Java class (e.g., "Pet", "Owner")
+   * @param nodeData UML node data containing attributes array
+   * @returns GeneratedFile object with DTO source code
    */
   private generateDTO(className: string, nodeData: any): GeneratedFile {
     const cleanProjectName = this.config.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
     const packageName = `${this.config.groupId}.${cleanProjectName}.dto`;
     
-    const attributes = nodeData.properties || nodeData.attributes || [];
+    // CRITICAL FIX: Filter out system-generated fields (id, createdAt, updatedAt)
+    // The 'id' field is already hard-coded in the template
+    const allAttributes = nodeData.properties || nodeData.attributes || [];
+    const attributes = allAttributes.filter((attr: any) => {
+      const name = attr.name?.toLowerCase();
+      return name !== 'id' && name !== 'createdat' && name !== 'updatedat';
+    });
     
     const content = `package ${packageName};
 
@@ -495,10 +532,9 @@ public class ${className}DTO {
     
     @Schema(description = "ID of the ${className.toLowerCase()}", example = "1")
     private Long id;
-    
-${attributes.map((attr: any) => `    @NotNull(message = "${attr.name} cannot be null")
+${attributes.length > 0 ? '\n\n' + attributes.map((attr: any) => `    @NotNull(message = "${attr.name} cannot be null")
     @Schema(description = "${attr.name} of the ${className.toLowerCase()}", required = true)
-    private ${this.mapType(attr.type)} ${this.validateJavaName(attr.name)};`).join('\n\n')}
+    private ${this.mapType(attr.type)} ${this.validateJavaName(attr.name)};`).join('\n\n') : ''}
 }`;
 
     return {
@@ -543,7 +579,19 @@ public interface ${className}Repository extends JpaRepository<${className}, Long
   }
 
   /**
-   * Generar Service
+   * Generate Service Class with CRUD operations and Entity-DTO mapping
+   * 
+   * CRITICAL FIX: Filters out system-generated fields (id, createdAt, updatedAt) from attribute mappings.
+   * These fields have hard-coded setter calls and must not be duplicated in the iteration loops.
+   * 
+   * Mapping structure:
+   * - Entity to DTO: dto.setId() hard-coded + user attributes iteration
+   * - DTO to Entity (update): user attributes iteration only (ID doesn't change)
+   * - DTO to Entity (create): entity.setId() conditional + user attributes iteration
+   * 
+   * @param className The name of the Java class (e.g., "Pet", "Owner")
+   * @param nodeData UML node data containing attributes array
+   * @returns GeneratedFile object with Service source code
    */
   private generateService(className: string, nodeData: any): GeneratedFile {
     const cleanProjectName = this.config.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
@@ -552,7 +600,13 @@ public interface ${className}Repository extends JpaRepository<${className}, Long
     const dtoPackage = `${this.config.groupId}.${cleanProjectName}.dto`;
     const repoPackage = `${this.config.groupId}.${cleanProjectName}.repository`;
     
-    const attributes = nodeData.properties || nodeData.attributes || [];
+    // CRITICAL FIX: Filter out system-generated fields (id, createdAt, updatedAt)
+    // These have hard-coded mappings and must not be duplicated
+    const allAttributes = nodeData.properties || nodeData.attributes || [];
+    const attributes = allAttributes.filter((attr: any) => {
+      const name = attr.name?.toLowerCase();
+      return name !== 'id' && name !== 'createdat' && name !== 'updatedat';
+    });
     
     // Generate getter/setter mappings for DTO conversion
     const dtoMappings = attributes.map((attr: any) => {
@@ -634,12 +688,12 @@ public class ${className}Service {
     private ${className}DTO convertToDTO(${className} entity) {
         ${className}DTO dto = new ${className}DTO();
         dto.setId(entity.getId());
-${dtoMappings}
+${dtoMappings.length > 0 ? dtoMappings : '        // No additional fields to map'}
         return dto;
     }
     
     private void updateEntityFromDTO(${className} entity, ${className}DTO dto) {
-${entityMappings}
+${entityMappings.length > 0 ? entityMappings : '        // No additional fields to update'}
     }
     
     private ${className} convertToEntity(${className}DTO dto) {
@@ -647,7 +701,7 @@ ${entityMappings}
         if (dto.getId() != null) {
             entity.setId(dto.getId());
         }
-${entityFromDtoMappings}
+${entityFromDtoMappings.length > 0 ? entityFromDtoMappings : '        // No additional fields to map'}
         return entity;
     }
 }`;
