@@ -36,12 +36,13 @@ export class SimpleCodeGenerator {
       const classNodes = this.nodes.filter(node => 
         node.data && (node.data.nodeType === 'class' || !node.data.nodeType)
       );
-      // Collect class names for Postman collection
-      const classNames: string[] = [];
+      // Collect class data for Postman collection (including attributes)
+      const classData: Array<{ name: string; attributes: any[] }> = [];
       
       classNodes.forEach(node => {
         const className = this.formatClassName(node.data.label || 'Entity');
-        classNames.push(className);
+        const attributes = node.data.properties || node.data.attributes || [];
+        classData.push({ name: className, attributes });
         
         // Generar archivos para cada clase
         files.push(this.generateEntity(className, node.data));
@@ -51,8 +52,8 @@ export class SimpleCodeGenerator {
         files.push(this.generateController(className));
       });
 
-      // 3. Generate Postman collection
-      files.push(this.generatePostmanCollection(cleanProjectName, classNames));
+      // 3. Generate Postman collection with real attributes
+      files.push(this.generatePostmanCollection(cleanProjectName, classData));
 
       // 4. Organize all files by package structure (AFTER all files are generated)
       this.organizeFilesByPackage(files);
@@ -1022,18 +1023,41 @@ Generation date: ${new Date().toLocaleString()}
   }
 
   /**
-   * Generate Postman Collection v2.1
+   * Generate Postman Collection v2.1 with REAL entity attributes
    * 
    * Creates a complete Postman collection with all API endpoints for easy testing.
-   * Includes environment variables, request examples, and proper folder structure.
+   * NOW includes real request bodies based on UML diagram attributes.
    */
-  private generatePostmanCollection(cleanProjectName: string, classNames: string[]): GeneratedFile {
+  private generatePostmanCollection(
+    cleanProjectName: string, 
+    classData: Array<{ name: string; attributes: any[] }>
+  ): GeneratedFile {
     const collectionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // Build request items for each entity
-    const entityFolders = classNames.map(className => {
+    // Build request items for each entity with REAL attributes
+    const entityFolders = classData.map(({ name: className, attributes }) => {
       const entityName = className.toLowerCase();
       const pluralName = `${entityName}s`;
+      
+      // Filter system fields (id, createdAt, updatedAt)
+      const userAttributes = attributes.filter((attr: any) => {
+        const name = attr.name?.toLowerCase();
+        return name !== 'id' && name !== 'createdat' && name !== 'updatedat';
+      });
+      
+      // Generate example body for POST (without id)
+      const createBody: any = {};
+      userAttributes.forEach((attr: any) => {
+        const attrName = this.validateJavaName(attr.name || 'field');
+        createBody[attrName] = this.getExampleValue(attr.type || 'String');
+      });
+      
+      // Generate example body for PUT (with id)
+      const updateBody: any = { id: 1 };
+      userAttributes.forEach((attr: any) => {
+        const attrName = this.validateJavaName(attr.name || 'field');
+        updateBody[attrName] = this.getExampleValue(attr.type || 'String');
+      });
       
       return {
         name: `${className} Management`,
@@ -1086,9 +1110,7 @@ Generation date: ${new Date().toLocaleString()}
               ],
               body: {
                 mode: 'raw',
-                raw: JSON.stringify({
-                  // Example body - user should customize
-                }, null, 2)
+                raw: JSON.stringify(createBody, null, 2)
               },
               url: {
                 raw: `{{baseUrl}}/api/v1/${pluralName}`,
@@ -1110,10 +1132,7 @@ Generation date: ${new Date().toLocaleString()}
               ],
               body: {
                 mode: 'raw',
-                raw: JSON.stringify({
-                  id: 1
-                  // Add other fields as needed
-                }, null, 2)
+                raw: JSON.stringify(updateBody, null, 2)
               },
               url: {
                 raw: `{{baseUrl}}/api/v1/${pluralName}/1`,
@@ -1247,6 +1266,35 @@ Generation date: ${new Date().toLocaleString()}
     };
     
     return typeMap[lowercaseType] || type;
+  }
+
+  /**
+   * Generate example values for Postman collection based on Java types
+   * 
+   * Provides realistic example data for API testing in Postman.
+   */
+  private getExampleValue(type: string): any {
+    if (!type) return 'Example String';
+    
+    const lowercaseType = type.toLowerCase();
+    
+    // Map types to example values
+    const exampleMap: Record<string, any> = {
+      'string': 'Example String',
+      'integer': 1,
+      'int': 1,
+      'long': 100,
+      'float': 10.5,
+      'double': 99.99,
+      'boolean': true,
+      'date': '2025-01-01',
+      'datetime': '2025-01-01T12:00:00',
+      'localdate': '2025-01-01',
+      'localdatetime': '2025-01-01T12:00:00',
+      'bigdecimal': 99.99,
+    };
+    
+    return exampleMap[lowercaseType] || 'Example Value';
   }
 
   /**
