@@ -169,14 +169,30 @@ export class SimpleCodeGenerator {
         <pluginRepository>
             <id>central</id>
             <url>https://repo.maven.apache.org/maven2</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
         </pluginRepository>
     </pluginRepositories>
     
     <build>
         <plugins>
+            <!-- Maven Compiler Plugin with Lombok annotation processing -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.10.1</version>
+                <configuration>
+                    <source>11</source>
+                    <target>11</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.30</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            
+            <!-- Spring Boot Maven Plugin -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -1205,10 +1221,32 @@ Generation date: ${new Date().toLocaleString()}
     };
   }
 
-  // Métodos auxiliares
+
   private formatClassName(name: string): string {
-    return name.charAt(0).toUpperCase() + name.slice(1)
+    let formattedName = name.charAt(0).toUpperCase() + name.slice(1)
       .replace(/[^a-zA-Z0-9]/g, '');
+    
+    // Spring Framework reserved annotation names that cause ambiguity
+    const springConflictingNames = [
+      'Service',
+      'Component', 
+      'Repository',
+      'Controller',
+      'Configuration',
+      'Bean',
+      'Autowired',
+      'Qualifier',
+      'Value',
+      'Scope'
+    ];
+    
+    // If class name conflicts with Spring annotations, append "Entity" suffix
+    if (springConflictingNames.includes(formattedName)) {
+      formattedName = `${formattedName}Entity`;
+      console.warn(`⚠️ Class name "${name}" conflicts with Spring annotation. Renamed to "${formattedName}"`);
+    }
+    
+    return formattedName;
   }
 
   /**
