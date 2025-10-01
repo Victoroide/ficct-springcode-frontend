@@ -44,8 +44,10 @@ const UMLInterfaceNode: React.FC<UMLInterfaceNodeProps> = ({ id, data, isConnect
   }, [isEditingName]);
 
   const handleDoubleClick = () => {
-    if (onEdit) {
-      onEdit(data);
+    // CRITICAL FIX: Use data.onEdit (passed from parent) instead of prop
+    const editHandler = (data as any).onEdit || onEdit;
+    if (editHandler) {
+      editHandler(data);
     }
   };
 
@@ -61,8 +63,9 @@ const UMLInterfaceNode: React.FC<UMLInterfaceNodeProps> = ({ id, data, isConnect
 
   const handleNameBlur = () => {
     setIsEditingName(false);
-    if (editedName.trim() && editedName !== data.label && onUpdateLabel) {
-      onUpdateLabel(id, editedName.trim());
+    const updateHandler = (data as any).onUpdateLabel || onUpdateLabel;
+    if (editedName.trim() && editedName !== data.label && updateHandler) {
+      updateHandler(id, editedName.trim());
     }
   };
 

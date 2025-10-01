@@ -45,8 +45,11 @@ const UMLClassNode: React.FC<UMLClassNodeProps> = ({ id, data, isConnectable, se
   }, [isEditingName]);
 
   const handleDoubleClick = () => {
-    if (onEdit) {
-      onEdit(data);
+    // CRITICAL FIX: Use data.onEdit (passed from parent) instead of prop
+    // This fixes the modal not opening on double-click
+    const editHandler = (data as any).onEdit || onEdit;
+    if (editHandler) {
+      editHandler(data);
     }
   };
 
@@ -62,8 +65,9 @@ const UMLClassNode: React.FC<UMLClassNodeProps> = ({ id, data, isConnectable, se
 
   const handleNameBlur = () => {
     setIsEditingName(false);
-    if (editedName.trim() && editedName !== data.label && onUpdateLabel) {
-      onUpdateLabel(id, editedName.trim());
+    const updateHandler = (data as any).onUpdateLabel || onUpdateLabel;
+    if (editedName.trim() && editedName !== data.label && updateHandler) {
+      updateHandler(id, editedName.trim());
     }
   };
 

@@ -28,8 +28,10 @@ const UMLEnumNode: React.FC<UMLEnumNodeProps> = ({ id, data, isConnectable, sele
   }, [isEditingName]);
 
   const handleDoubleClick = () => {
-    if (onEdit) {
-      onEdit(data);
+    // CRITICAL FIX: Use data.onEdit (passed from parent) instead of prop
+    const editHandler = (data as any).onEdit || onEdit;
+    if (editHandler) {
+      editHandler(data);
     }
   };
 
@@ -45,8 +47,9 @@ const UMLEnumNode: React.FC<UMLEnumNodeProps> = ({ id, data, isConnectable, sele
 
   const handleNameBlur = () => {
     setIsEditingName(false);
-    if (editedName.trim() && editedName !== data.label && onUpdateLabel) {
-      onUpdateLabel(id, editedName.trim());
+    const updateHandler = (data as any).onUpdateLabel || onUpdateLabel;
+    if (editedName.trim() && editedName !== data.label && updateHandler) {
+      updateHandler(id, editedName.trim());
     }
   };
 
