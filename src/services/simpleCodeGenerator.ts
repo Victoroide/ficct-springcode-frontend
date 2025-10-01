@@ -28,18 +28,20 @@ export class SimpleCodeGenerator {
       files.push(this.generatePomXml());
       files.push(this.generateApplicationProperties());
       files.push(this.generateApplicationMain(cleanProjectName));
-      files.push(this.generateOpenAPIConfig(cleanProjectName)); // Usamos OpenAPI en lugar de Swagger
+      files.push(this.generateOpenAPIConfig(cleanProjectName));
+      files.push(this.generateHealthController(cleanProjectName));
       files.push(this.generateReadme());
-
-      // Organizamos archivos por paquetes
-      this.organizeFilesByPackage(files);
       
       // 2. Generar archivos Java para cada clase UML
       const classNodes = this.nodes.filter(node => 
         node.data && (node.data.nodeType === 'class' || !node.data.nodeType)
       );
+      // Collect class names for Postman collection
+      const classNames: string[] = [];
+      
       classNodes.forEach(node => {
         const className = this.formatClassName(node.data.label || 'Entity');
+        classNames.push(className);
         
         // Generar archivos para cada clase
         files.push(this.generateEntity(className, node.data));
@@ -48,6 +50,12 @@ export class SimpleCodeGenerator {
         files.push(this.generateService(className, node.data));
         files.push(this.generateController(className));
       });
+
+      // 3. Generate Postman collection
+      files.push(this.generatePostmanCollection(cleanProjectName, classNames));
+
+      // 4. Organize all files by package structure (AFTER all files are generated)
+      this.organizeFilesByPackage(files);
 
       return {
         success: true,
@@ -99,9 +107,9 @@ export class SimpleCodeGenerator {
     <description>${this.config.description}</description>
     
     <properties>
-        <java.version>1.8</java.version>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <java.version>11</java.version>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
     </properties>
     
     <dependencies>
@@ -131,16 +139,11 @@ export class SimpleCodeGenerator {
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-        <!-- SpringDoc OpenAPI (reemplazo moderno de Springfox) -->
+        <!-- SpringDoc OpenAPI (stable version for Spring Boot 2.7.x) -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-ui</artifactId>
-            <version>1.7.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-webmvc-core</artifactId>
-            <version>1.7.0</version>
+            <version>1.6.15</version>
         </dependency>
         
         <dependency>
@@ -224,23 +227,14 @@ spring.h2.console.path=/h2-console
 server.port=8080
 
 # SpringDoc OpenAPI Configuration
-# Define la ruta para la documentación OpenAPI JSON
 springdoc.api-docs.path=/api-docs
-
-# Configuración de Swagger UI
-springdoc.swagger-ui.path=/swagger-ui.html
+springdoc.swagger-ui.enabled=true
 springdoc.swagger-ui.operationsSorter=method
 springdoc.swagger-ui.tagsSorter=alpha
 
-# Configuración para grupos de APIs
-springdoc.group-configs[0].group=api-v1
-springdoc.group-configs[0].paths-to-match=/api/v1/**
-
-# Habilita recursos estáticos (requerido para Swagger UI)
-spring.web.resources.add-mappings=true
-
-# Configuración de servidor para mejor manejo de encabezados
-server.forward-headers-strategy=framework`;
+# Logging
+logging.level.org.springframework.web=INFO
+logging.level.org.hibernate=INFO`;
 
     return {
       path: 'application.properties',
@@ -278,15 +272,14 @@ public class ${className} {
   }
 
   /**
-   * Generar configuración de OpenAPI
+   * Generate OpenAPI Configuration Class
+   * 
+   * Provides professional API documentation configuration for SpringDoc OpenAPI.
+   * Ensures Swagger UI loads correctly with proper metadata and structure.
    */
   private generateOpenAPIConfig(cleanProjectName: string): GeneratedFile {
-    const className = 'OpenAPIConfig';
-    // Declaramos explícitamente el paquete config
+    const className = 'OpenAPIConfiguration';
     const packageName = `${this.config.groupId}.${cleanProjectName}.config`;
-    // Referencia al paquete base donde está la clase principal
-    const mainPackageName = `${this.config.groupId}.${cleanProjectName}`;
-    const mainClassName = this.formatClassName(cleanProjectName) + 'Application';
     
     const content = `package ${packageName};
 
@@ -294,32 +287,73 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.License;
-import io.swagger.v3.oas.models.Components;
-import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class OpenAPIConfig {
+public class OpenAPIConfiguration {
     
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                    .title("${this.config.name} API")
-                    .description("${this.config.description}")
+                    .title("${this.config.name} REST API")
                     .version("${this.config.version}")
+                    .description("RESTful API generated from UML class diagram. This API provides CRUD operations for all entities defined in the UML model.")
                     .contact(new Contact()
-                        .name("Developer")
-                        .url("https://example.com")
-                        .email("developer@example.com"))
-                    .license(new License().name("Apache 2.0").url("https://www.apache.org/licenses/LICENSE-2.0")))
-                .components(new Components()
-                    .addSecuritySchemes("bearerAuth",
-                        new SecurityScheme()
-                            .type(SecurityScheme.Type.HTTP)
-                            .scheme("bearer")
-                            .bearerFormat("JWT")));
+                        .name("SpringCode Generator")
+                        .email("support@springcode.example.com")
+                        .url("https://springcode.example.com"))
+                    .license(new License()
+                        .name("MIT License")
+                        .url("https://opensource.org/licenses/MIT")));
+    }
+}`;
+
+    return {
+      path: `${className}.java`,
+      content,
+      language: 'other'
+    };
+  }
+
+  /**
+   * Generate Health Check Controller
+   * 
+   * Provides a simple health endpoint for monitoring application status.
+   * Accessible at /api/health for quick verification that the API is running.
+   */
+  private generateHealthController(cleanProjectName: string): GeneratedFile {
+    const className = 'HealthController';
+    const packageName = `${this.config.groupId}.${cleanProjectName}.controller`;
+    
+    const content = `package ${packageName};
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/health")
+@Tag(name = "Health Check", description = "Application health monitoring endpoints")
+public class HealthController {
+    
+    @GetMapping
+    @Operation(summary = "Check application health", description = "Returns the current status and timestamp of the application")
+    public ResponseEntity<Map<String, String>> health() {
+        Map<String, String> status = new HashMap<>();
+        status.put("status", "UP");
+        status.put("timestamp", LocalDateTime.now().toString());
+        status.put("application", "${this.config.name}");
+        status.put("version", "${this.config.version}");
+        return ResponseEntity.ok(status);
     }
 }`;
 
@@ -826,79 +860,329 @@ public class ${className}Controller {
   }
 
   /**
-   * Generar README
+   * Generate comprehensive README with API testing instructions
    */
   private generateReadme(): GeneratedFile {
     const content = `# ${this.config.name}
 
 ${this.config.description}
 
-## Tecnologías Utilizadas
+## Technology Stack
 
-- **Spring Boot 2.7.18** - Framework principal
-- **Java 8** - Lenguaje de programación
-- **Spring Data JPA** - ORM para base de datos
-- **H2 Database** - Base de datos en memoria
-- **Lombok** - Reducción de código boilerplate
-- **Springfox/Swagger** - Documentación de API
-- **Maven** - Gestión de dependencias
+- **Spring Boot 2.7.18** - Application framework
+- **Java 11** - Programming language
+- **Spring Data JPA** - Database ORM
+- **H2 Database** - In-memory database
+- **Lombok** - Boilerplate reduction
+- **SpringDoc OpenAPI 1.6.15** - API documentation
+- **Maven** - Dependency management
 
-## Estructura del Proyecto
+## Project Structure
 
 \`\`\`
 src/
 ├── main/
 │   ├── java/
 │   │   └── ${this.config.groupId.replace(/\./g, '/')}/
-│   │       ├── entity/      # Entidades JPA
+│   │       ├── entity/      # JPA Entities
 │   │       ├── dto/         # Data Transfer Objects
-│   │       ├── repository/  # Repositorios JPA
-│   │       ├── service/     # Lógica de negocio
-│   │       └── controller/  # Controladores REST
+│   │       ├── repository/  # JPA Repositories
+│   │       ├── service/     # Business Logic
+│   │       ├── controller/  # REST Controllers
+│   │       └── config/      # Configuration Classes
 │   └── resources/
 │       └── application.properties
 └── test/
 \`\`\`
 
-## Configuración y Ejecución
+## Setup and Execution
 
-### Prerrequisitos
-- Java 8+
+### Prerequisites
+- Java 11+
 - Maven 3.6+
 
-### Ejecutar la aplicación
+### Build the project
+\`\`\`bash
+mvn clean install
+\`\`\`
+
+### Run the application
 \`\`\`bash
 mvn spring-boot:run
 \`\`\`
 
-### Acceder a la aplicación
-- **API REST**: http://localhost:8080/api/v1
-- **Documentación OpenAPI**: http://localhost:8080/swagger-ui.html
-- **API Docs JSON**: http://localhost:8080/api-docs
-- **Base de datos H2**: http://localhost:8080/h2-console
-  - JDBC URL: \`jdbc:h2:mem:testdb\`
-  - Username: \`sa\`
-  - Password: (vacío)
+The application will start on port **8080**.
+
+## Testing the API
+
+### Using Swagger UI (Recommended)
+
+1. Start the application: \`mvn spring-boot:run\`
+2. Open your browser: **http://localhost:8080/swagger-ui/index.html**
+3. Explore all available endpoints with interactive documentation
+4. Execute test requests directly from the browser
+5. View request/response schemas and examples
+
+**Swagger UI Features:**
+- Interactive API documentation
+- Try out endpoints with real requests
+- View response codes and schemas
+- See example request bodies
+- Test authentication (if configured)
+
+### Using Postman
+
+1. Import the collection: **File → Import → Select \`${this.config.name.toLowerCase().replace(/\s+/g, '')}.postman_collection.json\`**
+2. Set the environment variable:
+   - Variable: \`baseUrl\`
+   - Value: \`http://localhost:8080\`
+3. Execute requests from the collection organized by entity
+
+**Postman Collection includes:**
+- All CRUD operations for each entity
+- Health check endpoint
+- Pre-configured request headers
+- Example request bodies
+- Environment variable support
+
+### Using curl
+
+#### Health Check
+\`\`\`bash
+curl -X GET http://localhost:8080/api/health
+\`\`\`
+
+#### Get all entities (example)
+\`\`\`bash
+curl -X GET http://localhost:8080/api/v1/{entity}s -H "Content-Type: application/json"
+\`\`\`
+
+#### Create entity (example)
+\`\`\`bash
+curl -X POST http://localhost:8080/api/v1/{entity}s \\
+  -H "Content-Type: application/json" \\
+  -d '{"field": "value"}'
+\`\`\`
 
 ## API Endpoints
 
-Todos los endpoints siguen el patrón REST estándar:
+### Health Check
+- \`GET /api/health\` - Application health status
 
-- \`GET /api/{entity}s\` - Listar todos
-- \`GET /api/{entity}s/{id}\` - Obtener por ID
-- \`POST /api/{entity}s\` - Crear nuevo
-- \`PUT /api/{entity}s/{id}\` - Actualizar
-- \`DELETE /api/{entity}s/{id}\` - Eliminar
+### Entity Endpoints
+All entities follow standard REST patterns:
 
-## Generado por
+- \`GET /api/v1/{entity}s\` - List all
+- \`GET /api/v1/{entity}s/{id}\` - Get by ID
+- \`POST /api/v1/{entity}s\` - Create new
+- \`PUT /api/v1/{entity}s/{id}\` - Update existing
+- \`DELETE /api/v1/{entity}s/{id}\` - Delete by ID
 
-Este proyecto fue generado automáticamente usando el **UML SpringBoot Code Generator**.
-Fecha de generación: ${new Date().toLocaleString()}`;
+## Database Access
+
+### H2 Console
+- **URL**: http://localhost:8080/h2-console
+- **JDBC URL**: \`jdbc:h2:mem:testdb\`
+- **Username**: \`sa\`
+- **Password**: (empty)
+
+The H2 console allows you to:
+- Execute SQL queries directly
+- View table structures
+- Inspect data in real-time
+- Debug database issues
+
+## OpenAPI Specification
+
+- **JSON Format**: http://localhost:8080/api-docs
+- **Swagger UI**: http://localhost:8080/swagger-ui/index.html
+
+## Generated by
+
+This project was automatically generated using the **UML SpringCode Generator**.  
+Generation date: ${new Date().toLocaleString()}
+
+---
+
+## Quick Start Guide
+
+1. **Compile**: \`mvn clean install\`
+2. **Run**: \`mvn spring-boot:run\`
+3. **Test**: Open http://localhost:8080/swagger-ui/index.html
+4. **Import Postman**: Load the included \`.postman_collection.json\` file
+5. **Explore**: Try the health check at http://localhost:8080/api/health
+
+✅ **Ready to use!** All endpoints are functional and documented.`;
 
     return {
       path: 'README.md',
       content,
       language: 'md'
+    };
+  }
+
+  /**
+   * Generate Postman Collection v2.1
+   * 
+   * Creates a complete Postman collection with all API endpoints for easy testing.
+   * Includes environment variables, request examples, and proper folder structure.
+   */
+  private generatePostmanCollection(cleanProjectName: string, classNames: string[]): GeneratedFile {
+    const collectionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Build request items for each entity
+    const entityFolders = classNames.map(className => {
+      const entityName = className.toLowerCase();
+      const pluralName = `${entityName}s`;
+      
+      return {
+        name: `${className} Management`,
+        item: [
+          {
+            name: `Get All ${pluralName}`,
+            request: {
+              method: 'GET',
+              header: [
+                {
+                  key: 'Content-Type',
+                  value: 'application/json'
+                }
+              ],
+              url: {
+                raw: `{{baseUrl}}/api/v1/${pluralName}`,
+                host: ['{{baseUrl}}'],
+                path: ['api', 'v1', pluralName]
+              },
+              description: `Retrieves all ${pluralName} from the database`
+            }
+          },
+          {
+            name: `Get ${className} by ID`,
+            request: {
+              method: 'GET',
+              header: [
+                {
+                  key: 'Content-Type',
+                  value: 'application/json'
+                }
+              ],
+              url: {
+                raw: `{{baseUrl}}/api/v1/${pluralName}/1`,
+                host: ['{{baseUrl}}'],
+                path: ['api', 'v1', pluralName, '1']
+              },
+              description: `Retrieves a specific ${entityName} by ID`
+            }
+          },
+          {
+            name: `Create ${className}`,
+            request: {
+              method: 'POST',
+              header: [
+                {
+                  key: 'Content-Type',
+                  value: 'application/json'
+                }
+              ],
+              body: {
+                mode: 'raw',
+                raw: JSON.stringify({
+                  // Example body - user should customize
+                }, null, 2)
+              },
+              url: {
+                raw: `{{baseUrl}}/api/v1/${pluralName}`,
+                host: ['{{baseUrl}}'],
+                path: ['api', 'v1', pluralName]
+              },
+              description: `Creates a new ${entityName} entity`
+            }
+          },
+          {
+            name: `Update ${className}`,
+            request: {
+              method: 'PUT',
+              header: [
+                {
+                  key: 'Content-Type',
+                  value: 'application/json'
+                }
+              ],
+              body: {
+                mode: 'raw',
+                raw: JSON.stringify({
+                  id: 1
+                  // Add other fields as needed
+                }, null, 2)
+              },
+              url: {
+                raw: `{{baseUrl}}/api/v1/${pluralName}/1`,
+                host: ['{{baseUrl}}'],
+                path: ['api', 'v1', pluralName, '1']
+              },
+              description: `Updates an existing ${entityName} entity`
+            }
+          },
+          {
+            name: `Delete ${className}`,
+            request: {
+              method: 'DELETE',
+              header: [],
+              url: {
+                raw: `{{baseUrl}}/api/v1/${pluralName}/1`,
+                host: ['{{baseUrl}}'],
+                path: ['api', 'v1', pluralName, '1']
+              },
+              description: `Deletes a ${entityName} entity by ID`
+            }
+          }
+        ]
+      };
+    });
+
+    // Add Health Check folder
+    const healthFolder = {
+      name: 'Health Check',
+      item: [
+        {
+          name: 'Check API Health',
+          request: {
+            method: 'GET',
+            header: [],
+            url: {
+              raw: `{{baseUrl}}/api/health`,
+              host: ['{{baseUrl}}'],
+              path: ['api', 'health']
+            },
+            description: 'Checks if the API is running and returns status information'
+          }
+        }
+      ]
+    };
+
+    const collection = {
+      info: {
+        _postman_id: collectionId,
+        name: `${this.config.name} API`,
+        description: `${this.config.description}\n\nGenerated REST API from UML class diagram.\n\n**Base URL:** http://localhost:8080\n**Swagger UI:** http://localhost:8080/swagger-ui/index.html`,
+        schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+      },
+      item: [healthFolder, ...entityFolders],
+      variable: [
+        {
+          key: 'baseUrl',
+          value: 'http://localhost:8080',
+          type: 'string'
+        }
+      ]
+    };
+
+    const content = JSON.stringify(collection, null, 2);
+    
+    return {
+      path: `${cleanProjectName}.postman_collection.json`,
+      content,
+      language: 'other'
     };
   }
 

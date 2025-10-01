@@ -51,48 +51,27 @@ export class DownloadService {
 
   /**
    * Obtener la ruta correcta según la estructura Maven estándar
+   * 
+   * CRITICAL: Uses the path from the code generator which already organized files by package.
+   * The generator's organizeFilesByPackage() method extracts the package declaration from 
+   * each Java file and creates the correct directory structure.
    */
   private static getCorrectMavenPath(file: GeneratedFile, projectName: string): string {
-    const cleanProjectName = projectName.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
-    const basePackage = `com.example.${cleanProjectName}`;
-    const packagePath = basePackage.replace(/\./g, '/');
-
-    // Archivos de configuración en la raíz
-    if (file.path === 'pom.xml' || file.path === 'README.md') {
+    // Archivos de configuración en la raíz del proyecto
+    if (file.path === 'pom.xml' || file.path === 'README.md' || file.path.endsWith('.postman_collection.json')) {
       return file.path;
     }
 
-    // Resources
+    // Resources (application.properties)
     if (file.path.includes('application.properties') || file.language === 'properties') {
       return 'src/main/resources/application.properties';
     }
 
-    // Archivos Java - organizar por carpetas Maven
+    // Archivos Java - usar el path que viene del generador
+    // El generador ya organizó los archivos según su package declaration
     if (file.language === 'other' && file.path.endsWith('.java')) {
-      const fileName = file.path.split('/').pop() || file.path;
-      
-      // Determinar carpeta por nombre del archivo
-      if (fileName.endsWith('Repository.java')) {
-        return `src/main/java/${packagePath}/repository/${fileName}`;
-      }
-      if (fileName.endsWith('Service.java')) {
-        return `src/main/java/${packagePath}/service/${fileName}`;
-      }
-      if (fileName.endsWith('Controller.java')) {
-        return `src/main/java/${packagePath}/controller/${fileName}`;
-      }
-      if (fileName.endsWith('DTO.java')) {
-        return `src/main/java/${packagePath}/dto/${fileName}`;
-      }
-      if (fileName.endsWith('Mapper.java')) {
-        return `src/main/java/${packagePath}/mapper/${fileName}`;
-      }
-      if (fileName.includes('Config.java') || fileName.includes('Application.java')) {
-        return `src/main/java/${packagePath}/config/${fileName}`;
-      }
-      
-      // Por defecto, entities
-      return `src/main/java/${packagePath}/entity/${fileName}`;
+      // El path ya tiene la estructura completa: com/example/project/[subpackage]/FileName.java
+      return `src/main/java/${file.path}`;
     }
 
     // Otros archivos
