@@ -26,6 +26,14 @@ interface UMLFlowEditorWithAIProps {
   onStopCollaboration?: () => void;
   hasUnsavedChanges?: boolean;
   showCommandInput?: boolean;
+  
+  // Chat integration props - pass through to base editor
+  onSendChatMessage?: (message: string) => void;
+  onSendTypingIndicator?: (isTyping: boolean) => void;
+  chatMessages?: Array<{id: string; content: string; sender: {id: string; nickname: string}; timestamp: Date; type: 'message' | 'system'}>;
+  isConnected?: boolean;
+  connectedUserCount?: number;
+  onlineUsers?: Array<{id: string; nickname: string; isOnline: boolean}>;
 }
 
 const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
@@ -40,7 +48,15 @@ const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
   onStartCollaboration,
   onStopCollaboration,
   hasUnsavedChanges = false,
-  showCommandInput = true
+  showCommandInput = true,
+  
+  // Chat props - pass through to base editor
+  onSendChatMessage,
+  onSendTypingIndicator,
+  chatMessages,
+  isConnected,
+  connectedUserCount,
+  onlineUsers
 }) => {
   // State for tracking nodes and edges to pass to AI Assistant
   const [currentNodes, setCurrentNodes] = useState<Node[]>(initialNodes);
@@ -172,6 +188,14 @@ const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
         onStopCollaboration={onStopCollaboration}
         onToggleAIAssistant={toggleAIAssistant}
         isAIAssistantOpen={isAIAssistantOpen}
+        
+        // Chat integration props - pass through
+        onSendChatMessage={onSendChatMessage}
+        onSendTypingIndicator={onSendTypingIndicator}
+        chatMessages={chatMessages}
+        isConnected={isConnected}
+        connectedUserCount={connectedUserCount}
+        onlineUsers={onlineUsers}
       />
 
       {/* AI Assistant Complete - Password protection is handled in toolbar */}

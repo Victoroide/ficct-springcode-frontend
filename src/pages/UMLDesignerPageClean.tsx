@@ -1,16 +1,3 @@
-/**
- * UMLDesignerPageClean.tsx
- * CLEAN WEBSOCKET IMPLEMENTATION - Replaces Broken Multi-Service Architecture
- * ========================================================================
- * 
- * This replaces the complex umlCollaborationService + anonymousWebSocketService
- * with the proven single useWebSocket hook pattern that eliminates:
- * - getAuthHeader authentication errors
- * - Multiple WebSocket connection conflicts
- * - Complex service initialization loops
- * - Message broadcast duplications
- */
-
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -21,6 +8,7 @@ import { toast } from '@/components/ui/toast-service';
 
 import UMLFlowEditorWithAI from '@/components/uml-flow/UMLFlowEditorWithAI';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useChatWebSocket } from '@/hooks/useChatWebSocket';
 import { diagramService } from '@/services/diagramService';
 import type { DiagramData } from '@/services/diagramService';
 import { anonymousSessionService } from '@/services/anonymousSessionService';
@@ -88,18 +76,17 @@ export function UMLDesignerPageClean({
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
   
   // ================================================================================
-  // CLEAN WEBSOCKET IMPLEMENTATION - Replaces ALL broken services
+  // SEPARATE WEBSOCKET CONNECTIONS - Diagram + Chat
   // ================================================================================
-  const { isConnected, connectedUsers, sendMessage } = useWebSocket({
+  
+  // 1. Diagram WebSocket (existing - works perfectly)
+  const { isConnected: isDiagramConnected, connectedUsers, sendMessage } = useWebSocket({
     diagramId,
     
     // Direct React Flow state integration
     onNodesChange: useCallback((newNodes) => {
       if (!isReceivingTitleUpdate) {
-        // TASK 4 FIX: Remove performance-killing logs - only essential logging
         setNodes(newNodes);
-        
-        // Call parent callback if provided
         if (onDiagramChange) {
           onDiagramChange(newNodes, edges);
         }
@@ -108,10 +95,7 @@ export function UMLDesignerPageClean({
     
     onEdgesChange: useCallback((newEdges) => {
       if (!isReceivingTitleUpdate) {
-        // TASK 4 FIX: Remove performance-killing logs - only essential logging
         setEdges(newEdges);
-        
-        // Call parent callback if provided
         if (onDiagramChange) {
           onDiagramChange(nodes, newEdges);
         }
@@ -120,7 +104,6 @@ export function UMLDesignerPageClean({
     
     onTitleChange: useCallback((newTitle) => {
       if (!isEditingName) {
-        // TASK 4 FIX: Remove performance-killing logs - only essential logging
         setIsReceivingTitleUpdate(true);
         setDiagramName(newTitle);
         localTitleRef.current = newTitle;
@@ -129,7 +112,6 @@ export function UMLDesignerPageClean({
     }, [isEditingName]),
     
     onUserJoined: useCallback((user) => {
-      // TASK 5 FIX: Single toast notification - no duplicate spam
       toast({
         title: "Usuario conectado",
         description: `${user.nickname} se ha unido al diagrama`,
@@ -138,39 +120,49 @@ export function UMLDesignerPageClean({
     }, []),
     
     onUserLeft: useCallback((user) => {
-      // TASK 5 FIX: Single toast notification - no duplicate spam  
       toast({
         title: "Usuario desconectado", 
         description: `${user.nickname} ha salido del diagrama`,
         variant: "warning"
       });
-    }, []),
-    
-    // Chat message handlers - CHAT DISPLAY FIX: Prevent duplicate messages from own user
-    onChatMessage: useCallback((message) => {
-      // Only add message if it's NOT from current user (prevent duplicates)
-      if (message.sender.id !== session.sessionId) {
-        setChatMessages(prev => [...prev, message]);
-      }
-    }, [session.sessionId]),
-    
-    onTypingIndicator: useCallback((data) => {
-      // Handle typing indicator
-    }, []),
-    
-    onUserPresence: useCallback((data) => {
-      // TASK 2 FIX: Update user count display
-      setConnectedUserCount(data.count);
-      setOnlineUsers(data.users.map((user, index) => ({
-        id: `user-${index}`,
-        nickname: user,
-        isOnline: true
-      })));
     }, [])
   });
 
-  // Chat functions that use WebSocket - CHAT DISPLAY FIX: Show sender's own messages
+  // 2. Chat WebSocket (NEW - dedicated for chat)
+  const { 
+    isConnected: isChatConnected, 
+    connectedUsers: chatUsers, 
+    sendChatMessage, 
+    sendTypingIndicator 
+  } = useChatWebSocket({
+    diagramId,
+    
+    onChatMessage: useCallback((message) => {
+      // Add all received chat messages (the hook already filters out our own)
+      setChatMessages(prev => [...prev, message]);
+    }, []),
+    
+    onUserJoined: useCallback((user) => {
+      setOnlineUsers(prev => {
+        if (!prev.find(u => u.id === user.id)) {
+          return [...prev, { ...user, isOnline: true }];
+        }
+        return prev;
+      });
+    }, []),
+    
+    onUserLeft: useCallback((user) => {
+      setOnlineUsers(prev => prev.filter(u => u.id !== user.id));
+    }, []),
+    
+    onUserCount: useCallback((count) => {
+      setConnectedUserCount(count);
+    }, [])
+  });
+
+  // Chat handlers - now using dedicated chat WebSocket
   const handleSendChatMessage = useCallback((message: string) => {
+    // 1. Add to local chat immediately so sender sees it
     const chatMessage = {
       id: Date.now().toString(),
       content: message,
@@ -182,27 +174,15 @@ export function UMLDesignerPageClean({
       type: 'message' as const
     };
     
-    // 1. IMMEDIATELY add to local chat (so sender sees it)
     setChatMessages(prev => [...prev, chatMessage]);
     
-    // 2. Send via WebSocket to other users
-    if (isConnected) {
-      sendMessage('chat_message', {
-        content: message,
-        user: session.nickname,
-        timestamp: Date.now()
-      });
-    }
-  }, [isConnected, sendMessage, session.nickname, session.sessionId]);
+    // 2. Send via dedicated chat WebSocket
+    sendChatMessage(message);
+  }, [sendChatMessage, session.sessionId, session.nickname]);
 
   const handleSendTypingIndicator = useCallback((isTyping: boolean) => {
-    if (isConnected) {
-      sendMessage('typing_indicator', {
-        isTyping,
-        user: session.nickname
-      });
-    }
-  }, [isConnected, sendMessage, session.nickname]);
+    sendTypingIndicator(isTyping);
+  }, [sendTypingIndicator]);
 
   // Load diagram on mount
   useEffect(() => {
@@ -278,7 +258,7 @@ export function UMLDesignerPageClean({
     setNodes(newNodes);
     
     // Broadcast to other users via WebSocket
-    if (isConnected) {
+    if (isDiagramConnected) {
       sendMessage('node_update', { nodes: newNodes });
     }
     
@@ -296,14 +276,14 @@ export function UMLDesignerPageClean({
         updated_at: new Date().toISOString()
       }));
     }
-  }, [isConnected, sendMessage, edges, onDiagramChange, diagramId, diagramName]);
+  }, [isDiagramConnected, sendMessage, edges, onDiagramChange, diagramId, diagramName]);
 
   const handleEdgesChange = useCallback((newEdges) => {
     // TASK 4 FIX: Remove performance-killing console logs
     setEdges(newEdges);
     
     // Broadcast to other users via WebSocket
-    if (isConnected) {
+    if (isDiagramConnected) {
       sendMessage('edge_update', { edges: newEdges });
     }
     
@@ -321,7 +301,7 @@ export function UMLDesignerPageClean({
         updated_at: new Date().toISOString()
       }));
     }
-  }, [isConnected, sendMessage, nodes, onDiagramChange, diagramId, diagramName]);
+  }, [isDiagramConnected, sendMessage, nodes, onDiagramChange, diagramId, diagramName]);
 
   // Save diagram to API
   const handleSave = useCallback(async () => {
@@ -384,11 +364,11 @@ export function UMLDesignerPageClean({
       }
       
       // Broadcast title change via WebSocket
-      if (isConnected) {
+      if (isDiagramConnected) {
         sendMessage('title_changed', { title: finalTitle });
       }
     }
-  }, [diagramName, diagramId, isConnected, sendMessage]);
+  }, [diagramName, diagramId, isDiagramConnected, sendMessage]);
 
   // Loading state
   if (diagramLoading && !isNewDiagram) {
@@ -482,7 +462,7 @@ export function UMLDesignerPageClean({
 
             {/* Clean WebSocket Connection Status */}
             <div className="flex items-center gap-2">
-              {isConnected ? (
+              {isChatConnected ? (
                 <Badge variant="success" className="flex items-center gap-1">
                   <Wifi className="h-3 w-3" />
                   Conectado
@@ -518,10 +498,18 @@ export function UMLDesignerPageClean({
           onEdgesChange={handleEdgesChange}
           diagramId={diagramId}
           onSave={handleSave}
-          isCollaborating={isConnected}
+          isCollaborating={isDiagramConnected}
           hasUnsavedChanges={true}
           onStartCollaboration={() => {}}
           onStopCollaboration={() => {}}
+          
+          // Chat integration props - now using dedicated chat WebSocket
+          onSendChatMessage={handleSendChatMessage}
+          onSendTypingIndicator={handleSendTypingIndicator}
+          chatMessages={chatMessages}
+          isConnected={isChatConnected}
+          connectedUserCount={connectedUserCount}
+          onlineUsers={onlineUsers}
         />
       </div>
     </div>

@@ -84,6 +84,7 @@ export interface UMLFlowEditorFixedProps {
   chatMessages?: Array<{id: string; content: string; sender: {id: string; nickname: string}; timestamp: Date; type: 'message' | 'system'}>;
   isConnected?: boolean;
   connectedUserCount?: number;
+  onlineUsers?: Array<{id: string; nickname: string; isOnline: boolean}>;
   
   // AI Assistant integration props
   onToggleAIAssistant?: () => void;
@@ -110,6 +111,7 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
   chatMessages = [],
   isConnected = false,
   connectedUserCount = 1,
+  onlineUsers = [],
   onToggleAIAssistant,
   isAIAssistantOpen,
   isCollaborating = false,
@@ -617,9 +619,7 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
             nickname: 'Anonymous User', 
             isOnline: isConnected 
           }}
-          onlineUsers={[
-            { id: 'anonymous-user', nickname: 'Anonymous User', isOnline: true }
-          ]}
+          onlineUsers={onlineUsers}
           messages={chatMessages}
           isConnected={isConnected}
           onSendMessage={handleSendMessage}
