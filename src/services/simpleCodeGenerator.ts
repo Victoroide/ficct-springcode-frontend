@@ -125,8 +125,8 @@ export class SimpleCodeGenerator {
         </dependency>
         
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
         
@@ -224,21 +224,18 @@ export class SimpleCodeGenerator {
     const content = `# Spring Boot Configuration
 spring.application.name=${this.config.name.toLowerCase().replace(/\s+/g, '-')}
 
-# Database Configuration (H2 in-memory)
-spring.datasource.url=jdbc:h2:mem:testdb
-spring.datasource.driverClassName=org.h2.Driver
-spring.datasource.username=sa
-spring.datasource.password=
+# PostgreSQL Database Configuration
+spring.datasource.url=jdbc:postgresql://localhost:5432/springboot_db
+spring.datasource.username=postgres
+spring.datasource.password=postgres
+spring.datasource.driver-class-name=org.postgresql.Driver
 
 # JPA Configuration
-spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
-spring.jpa.hibernate.ddl-auto=create-drop
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 spring.jpa.properties.hibernate.format_sql=true
-
-# H2 Console (for development)
-spring.h2.console.enabled=true
-spring.h2.console.path=/h2-console
+spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation=true
 
 # Server Configuration
 server.port=8080
@@ -889,7 +886,7 @@ ${this.config.description}
 - **Spring Boot 2.7.18** - Application framework
 - **Java 11** - Programming language
 - **Spring Data JPA** - Database ORM
-- **H2 Database** - In-memory database
+- **PostgreSQL** - Relational database
 - **Lombok** - Boilerplate reduction
 - **SpringDoc OpenAPI 1.6.15** - API documentation
 - **Maven** - Dependency management
@@ -917,6 +914,32 @@ src/
 ### Prerequisites
 - Java 11+
 - Maven 3.6+
+- PostgreSQL 12+ (running on localhost:5432)
+
+### Database Setup
+
+1. **Install PostgreSQL** (if not already installed)
+   - Download from: https://www.postgresql.org/download/
+   - Or use Docker: \`docker run --name postgres-db -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres\`
+
+2. **Create Database**
+   \`\`\`sql
+   -- Connect to PostgreSQL
+   psql -U postgres
+   
+   -- Create database
+   CREATE DATABASE springboot_db;
+   
+   -- Verify
+   \\l
+   \`\`\`
+
+3. **Configure Database** (optional)
+   - Edit \`src/main/resources/application.properties\`
+   - Update credentials if different from defaults:
+     - Username: \`postgres\`
+     - Password: \`postgres\`
+     - Database: \`springboot_db\`
 
 ### Build the project
 \`\`\`bash
@@ -928,7 +951,7 @@ mvn clean install
 mvn spring-boot:run
 \`\`\`
 
-The application will start on port **8080**.
+The application will start on port **8080** and automatically create tables in PostgreSQL.
 
 ## Testing the API
 
@@ -997,17 +1020,40 @@ All entities follow standard REST patterns:
 
 ## Database Access
 
-### H2 Console
-- **URL**: http://localhost:8080/h2-console
-- **JDBC URL**: \`jdbc:h2:mem:testdb\`
-- **Username**: \`sa\`
-- **Password**: (empty)
+### PostgreSQL Connection
+You can connect to the database using any PostgreSQL client:
 
-The H2 console allows you to:
-- Execute SQL queries directly
-- View table structures
-- Inspect data in real-time
-- Debug database issues
+**Connection Details:**
+- **Host**: localhost
+- **Port**: 5432
+- **Database**: springboot_db
+- **Username**: postgres
+- **Password**: postgres
+
+**Using psql:**
+\`\`\`bash
+psql -U postgres -d springboot_db
+\`\`\`
+
+**Common SQL Commands:**
+\`\`\`sql
+-- List all tables
+\\dt
+
+-- Describe a table structure
+\\d table_name
+
+-- Query data
+SELECT * FROM users;
+
+-- Check table count
+SELECT COUNT(*) FROM users;
+\`\`\`
+
+**GUI Tools (recommended):**
+- **pgAdmin**: https://www.pgadmin.org/
+- **DBeaver**: https://dbeaver.io/
+- **DataGrip**: https://www.jetbrains.com/datagrip/
 
 ## OpenAPI Specification
 

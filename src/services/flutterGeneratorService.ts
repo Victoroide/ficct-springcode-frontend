@@ -108,8 +108,17 @@ export class FlutterGeneratorService {
   private generateDartModel(node: any): string {
     const className = this.sanitizeClassName(node.data.label);
     const fileName = this.sanitizeFileName(node.data.label);
-    const attributes = node.data.attributes || [];
+    let attributes = node.data.attributes || [];
     const methods = node.data.methods || [];
+
+    // Ensure 'id' field exists (required for CRUD operations)
+    const hasId = attributes.some((attr: any) => attr.name === 'id');
+    if (!hasId) {
+      attributes = [
+        { name: 'id', type: 'Integer', visibility: 'public', isFinal: false },
+        ...attributes
+      ];
+    }
 
     let code = `import 'package:json_annotation/json_annotation.dart';\n\n`;
     code += `part '${fileName}.g.dart';\n\n`;
@@ -248,7 +257,7 @@ export class FlutterGeneratorService {
     code += `    _error = null;\n`;
     code += `    notifyListeners();\n\n`;
     code += `    try {\n`;
-    code += `      final response = await _apiService.get('/${this.toSnakeCase(className)}s');\n`;
+    code += `      final response = await _apiService.get('/${this.getEndpoint(className)}');\n`;
     code += `      if (response is List) {\n`;
     code += `        _items = response\n`;
     code += `            .map((json) => ${className}.fromJson(json as Map<String, dynamic>))\n`;
@@ -270,7 +279,7 @@ export class FlutterGeneratorService {
     // Create
     code += `  Future<void> createItem(${className} item) async {\n`;
     code += `    try {\n`;
-    code += `      await _apiService.post('/${this.toSnakeCase(className)}s', item.toJson());\n`;
+    code += `      await _apiService.post('/${this.getEndpoint(className)}', item.toJson());\n`;
     code += `      await fetchItems();\n`;
     code += `    } catch (e) {\n`;
     code += `      _error = e.toString();\n`;
@@ -279,9 +288,11 @@ export class FlutterGeneratorService {
     code += `  }\n\n`;
 
     // Update
-    code += `  Future<void> updateItem(int id, ${className} item) async {\n`;
+    code += `  Future<void> updateItem(dynamic id, ${className} item) async {\n`;
     code += `    try {\n`;
-    code += `      await _apiService.put('/${this.toSnakeCase(className)}s/\$id', item.toJson());\n`;
+    code += `      final itemId = id is int ? id : int.tryParse(id.toString());\n`;
+    code += `      if (itemId == null) throw Exception('Invalid ID for update');\n`;
+    code += `      await _apiService.put('/${this.getEndpoint(className)}/\$itemId', item.toJson());\n`;
     code += `      await fetchItems();\n`;
     code += `    } catch (e) {\n`;
     code += `      _error = e.toString();\n`;
@@ -290,9 +301,11 @@ export class FlutterGeneratorService {
     code += `  }\n\n`;
 
     // Delete
-    code += `  Future<void> deleteItem(int id) async {\n`;
+    code += `  Future<void> deleteItem(dynamic id) async {\n`;
     code += `    try {\n`;
-    code += `      await _apiService.delete('/${this.toSnakeCase(className)}s/\$id');\n`;
+    code += `      final itemId = id is int ? id : int.tryParse(id.toString());\n`;
+    code += `      if (itemId == null) throw Exception('Invalid ID for delete');\n`;
+    code += `      await _apiService.delete('/${this.getEndpoint(className)}/\$itemId');\n`;
     code += `      await fetchItems();\n`;
     code += `    } catch (e) {\n`;
     code += `      _error = e.toString();\n`;
@@ -325,10 +338,27 @@ export class FlutterGeneratorService {
     const attributes = node.data.attributes || [];
     const screenName = `${className}FormScreen`;
 
+    // Detect foreign key fields (fields ending with 'Id' except 'id')
+    const foreignKeys = attributes.filter((attr: any) => 
+      attr.name !== 'id' && 
+      attr.name.toLowerCase().endsWith('id') &&
+      (attr.type === 'Integer' || attr.type === 'int')
+    );
+
     let code = `import 'package:flutter/material.dart';\n`;
     code += `import 'package:provider/provider.dart';\n`;
+    code += `import 'dart:convert';\n`;
     code += `import '../models/${fileName}.dart';\n`;
-    code += `import '../providers/${fileName}_provider.dart';\n\n`;
+    code += `import '../providers/${fileName}_provider.dart';\n`;
+    
+    // Import providers for foreign key entities
+    foreignKeys.forEach((fk: any) => {
+      const relatedEntity = this.extractRelatedEntityName(fk.name);
+      const relatedFileName = this.sanitizeFileName(relatedEntity);
+      code += `import '../providers/${relatedFileName}_provider.dart';\n`;
+    });
+    
+    code += `\n`;
 
     code += `class ${screenName} extends StatefulWidget {\n`;
     code += `  final ${className}? item;\n\n`;
@@ -353,10 +383,23 @@ export class FlutterGeneratorService {
         code += `  bool _${attr.name} = false;\n`;
       }
     });
+    
+    // Selected items for foreign keys (to display full object data)
+    foreignKeys.forEach((fk: any) => {
+      code += `  Map<String, dynamic>? _selected${this.capitalizeFirst(fk.name)}Data;\n`;
+    });
 
     code += `\n  @override\n`;
     code += `  void initState() {\n`;
     code += `    super.initState();\n`;
+    
+    // Load foreign key data
+    foreignKeys.forEach((fk: any) => {
+      const relatedEntity = this.extractRelatedEntityName(fk.name);
+      const relatedClassName = this.sanitizeClassName(relatedEntity);
+      code += `    Future.microtask(() => context.read<${relatedClassName}Provider>().fetchItems());\n`;
+    });
+    
     code += `    if (widget.item != null) {\n`;
     attributes.forEach((attr: any) => {
       const prefix = attr.visibility === 'private' ? '_' : '';
@@ -384,6 +427,10 @@ export class FlutterGeneratorService {
 
     // Generate form fields
     attributes.forEach((attr: any) => {
+      const isForeignKey = attr.name !== 'id' && 
+                          attr.name.toLowerCase().endsWith('id') && 
+                          (attr.type === 'Integer' || attr.type === 'int');
+      
       if (attr.type === 'Boolean') {
         code += `              SwitchListTile(\n`;
         code += `                title: Text('${this.capitalizeFirst(attr.name)}'),\n`;
@@ -391,6 +438,61 @@ export class FlutterGeneratorService {
         code += `                onChanged: (value) {\n`;
         code += `                  setState(() => _${attr.name} = value);\n`;
         code += `                },\n`;
+        code += `              ),\n`;
+      } else if (isForeignKey) {
+        // Generate selector button with modal for foreign keys
+        const relatedEntity = this.extractRelatedEntityName(attr.name);
+        const relatedClassName = this.sanitizeClassName(relatedEntity);
+        const relatedFileName = this.sanitizeFileName(relatedEntity);
+        
+        code += `              // Foreign key selector for ${attr.name}\n`;
+        code += `              Padding(\n`;
+        code += `                padding: const EdgeInsets.symmetric(vertical: 8.0),\n`;
+        code += `                child: Column(\n`;
+        code += `                  crossAxisAlignment: CrossAxisAlignment.start,\n`;
+        code += `                  children: [\n`;
+        code += `                    Text(\n`;
+        code += `                      '${this.capitalizeFirst(attr.name)}',\n`;
+        code += `                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),\n`;
+        code += `                    ),\n`;
+        code += `                    const SizedBox(height: 4),\n`;
+        code += `                    InkWell(\n`;
+        code += `                      onTap: () => _select${this.capitalizeFirst(attr.name)}(context),\n`;
+        code += `                      child: Container(\n`;
+        code += `                        padding: const EdgeInsets.all(12),\n`;
+        code += `                        decoration: BoxDecoration(\n`;
+        code += `                          border: Border.all(color: Colors.grey),\n`;
+        code += `                          borderRadius: BorderRadius.circular(4),\n`;
+        code += `                        ),\n`;
+        code += `                        child: Row(\n`;
+        code += `                          children: [\n`;
+        code += `                            Expanded(\n`;
+        code += `                              child: Text(\n`;
+        code += `                                _selected${this.capitalizeFirst(attr.name)}Data != null\n`;
+        code += `                                    ? 'ID: \${_${attr.name}Controller.text} - \${_selected${this.capitalizeFirst(attr.name)}Data.toString()}'\n`;
+        code += `                                    : _${attr.name}Controller.text.isEmpty\n`;
+        code += `                                        ? 'Select ${relatedClassName}'\n`;
+        code += `                                        : 'ID: \${_${attr.name}Controller.text}',\n`;
+        code += `                                style: TextStyle(\n`;
+        code += `                                  color: _${attr.name}Controller.text.isEmpty ? Colors.grey : Colors.black,\n`;
+        code += `                                ),\n`;
+        code += `                              ),\n`;
+        code += `                            ),\n`;
+        code += `                            const Icon(Icons.arrow_drop_down),\n`;
+        code += `                          ],\n`;
+        code += `                        ),\n`;
+        code += `                      ),\n`;
+        code += `                    ),\n`;
+        code += `                    if (_${attr.name}Controller.text.isEmpty)\n`;
+        code += `                      Padding(\n`;
+        code += `                        padding: const EdgeInsets.only(left: 12, top: 4),\n`;
+        code += `                        child: Text(\n`;
+        code += `                          'Please select a ${relatedClassName}',\n`;
+        code += `                          style: TextStyle(color: Colors.red[700], fontSize: 12),\n`;
+        code += `                        ),\n`;
+        code += `                      ),\n`;
+        code += `                  ],\n`;
+        code += `                ),\n`;
         code += `              ),\n`;
       } else {
         code += `              TextFormField(\n`;
@@ -441,13 +543,95 @@ export class FlutterGeneratorService {
     code += `      if (widget.item == null) {\n`;
     code += `        await provider.createItem(item);\n`;
     code += `      } else {\n`;
-    code += `        // await provider.updateItem(widget.item!.id, item);\n`;
+    code += `        if (widget.item!.id != null) {\n`;
+    code += `          await provider.updateItem(widget.item!.id!, item);\n`;
+    code += `        }\n`;
     code += `      }\n\n`;
     code += `      if (context.mounted) {\n`;
     code += `        Navigator.pop(context);\n`;
     code += `      }\n`;
     code += `    }\n`;
-    code += `  }\n`;
+    code += `  }\n\n`;
+
+    // Generate selector methods for foreign keys
+    foreignKeys.forEach((fk: any) => {
+      const relatedEntity = this.extractRelatedEntityName(fk.name);
+      const relatedClassName = this.sanitizeClassName(relatedEntity);
+      
+      code += `  // Selector method for ${fk.name}\n`;
+      code += `  void _select${this.capitalizeFirst(fk.name)}(BuildContext context) async {\n`;
+      code += `    final provider = context.read<${relatedClassName}Provider>();\n`;
+      code += `    \n`;
+      code += `    await showDialog(\n`;
+      code += `      context: context,\n`;
+      code += `      builder: (context) => AlertDialog(\n`;
+      code += `        title: const Text('Select ${relatedClassName}'),\n`;
+      code += `        content: SizedBox(\n`;
+      code += `          width: double.maxFinite,\n`;
+      code += `          height: 400,\n`;
+      code += `          child: Consumer<${relatedClassName}Provider>(\n`;
+      code += `            builder: (context, provider, child) {\n`;
+      code += `              if (provider.isLoading) {\n`;
+      code += `                return const Center(child: CircularProgressIndicator());\n`;
+      code += `              }\n`;
+      code += `              \n`;
+      code += `              if (provider.errorMessage != null) {\n`;
+      code += `                return Center(\n`;
+      code += `                  child: Text('Error: \${provider.errorMessage}'),\n`;
+      code += `                );\n`;
+      code += `              }\n`;
+      code += `              \n`;
+      code += `              if (provider.items.isEmpty) {\n`;
+      code += `                return const Center(\n`;
+      code += `                  child: Text('No ${relatedClassName} available'),\n`;
+      code += `                );\n`;
+      code += `              }\n`;
+      code += `              \n`;
+      code += `              return ListView.builder(\n`;
+      code += `                itemCount: provider.items.length,\n`;
+      code += `                itemBuilder: (context, index) {\n`;
+      code += `                  final item = provider.items[index];\n`;
+      code += `                  final jsonData = item.toJson();\n`;
+      code += `                  final prettyJson = const JsonEncoder.withIndent('  ').convert(jsonData);\n`;
+      code += `                  \n`;
+      code += `                  return Card(\n`;
+      code += `                    margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),\n`;
+      code += `                    child: ListTile(\n`;
+      code += `                      title: Text('ID: \${item.id ?? "N/A"}'),\n`;
+      code += `                      subtitle: Padding(\n`;
+      code += `                        padding: const EdgeInsets.only(top: 8),\n`;
+      code += `                        child: Text(\n`;
+      code += `                          prettyJson,\n`;
+      code += `                          style: const TextStyle(\n`;
+      code += `                            fontFamily: 'monospace',\n`;
+      code += `                            fontSize: 11,\n`;
+      code += `                          ),\n`;
+      code += `                        ),\n`;
+      code += `                      ),\n`;
+      code += `                      onTap: () {\n`;
+      code += `                        setState(() {\n`;
+      code += `                          _${fk.name}Controller.text = item.id?.toString() ?? '';\n`;
+      code += `                          _selected${this.capitalizeFirst(fk.name)}Data = jsonData;\n`;
+      code += `                        });\n`;
+      code += `                        Navigator.pop(context);\n`;
+      code += `                      },\n`;
+      code += `                    ),\n`;
+      code += `                  );\n`;
+      code += `                },\n`;
+      code += `              );\n`;
+      code += `            },\n`;
+      code += `          ),\n`;
+      code += `        ),\n`;
+      code += `        actions: [\n`;
+      code += `          TextButton(\n`;
+      code += `            onPressed: () => Navigator.pop(context),\n`;
+      code += `            child: const Text('Cancel'),\n`;
+      code += `          ),\n`;
+      code += `        ],\n`;
+      code += `      ),\n`;
+      code += `    );\n`;
+      code += `  }\n\n`;
+    });
 
     code += `}\n`;
 
@@ -477,7 +661,14 @@ export class FlutterGeneratorService {
     code += `import 'package:provider/provider.dart';\n`;
     code += `import '../models/${fileName}.dart';\n`;
     code += `import '../providers/${fileName}_provider.dart';\n`;
-    code += `import '${fileName}_form.dart';\n\n`;
+    code += `import '${fileName}_form.dart';\n`;
+    
+    // Add AppDrawer import if drawer navigation
+    if (this.config.navigation.type === 'drawer') {
+      code += `import '../widgets/app_drawer.dart';\n`;
+    }
+    
+    code += `\n`;
 
     code += `class ${screenName} extends StatefulWidget {\n`;
     code += `  const ${screenName}({Key? key}) : super(key: key);\n\n`;
@@ -500,6 +691,12 @@ export class FlutterGeneratorService {
     code += `      appBar: AppBar(\n`;
     code += `        title: const Text('${className} List'),\n`;
     code += `      ),\n`;
+    
+    // Add drawer if navigation type is drawer
+    if (this.config.navigation.type === 'drawer') {
+      code += `      drawer: const AppDrawer(),\n`;
+    }
+    
     code += `      body: Consumer<${className}Provider>(\n`;
     code += `        builder: (context, provider, child) {\n`;
     code += `          if (provider.isLoading) {\n`;
@@ -607,8 +804,28 @@ export class FlutterGeneratorService {
     code += `    );\n`;
     code += `  }\n\n`;
 
-    code += `  void _deleteItem(${className} item) {\n`;
-    code += `    // Implement delete confirmation and call provider.deleteItem(item.id)\n`;
+    code += `  void _deleteItem(${className} item) async {\n`;
+    code += `    final confirmed = await showDialog<bool>(\n`;
+    code += `      context: context,\n`;
+    code += `      builder: (context) => AlertDialog(\n`;
+    code += `        title: const Text('Confirm Delete'),\n`;
+    code += `        content: const Text('Are you sure you want to delete this item?'),\n`;
+    code += `        actions: [\n`;
+    code += `          TextButton(\n`;
+    code += `            onPressed: () => Navigator.pop(context, false),\n`;
+    code += `            child: const Text('Cancel'),\n`;
+    code += `          ),\n`;
+    code += `          TextButton(\n`;
+    code += `            onPressed: () => Navigator.pop(context, true),\n`;
+    code += `            child: const Text('Delete', style: TextStyle(color: Colors.red)),\n`;
+    code += `          ),\n`;
+    code += `        ],\n`;
+    code += `      ),\n`;
+    code += `    );\n\n`;
+    code += `    if (confirmed == true && item.id != null) {\n`;
+    code += `      final provider = context.read<${className}Provider>();\n`;
+    code += `      await provider.deleteItem(item.id!);\n`;
+    code += `    }\n`;
     code += `  }\n`;
 
     code += `}\n`;
@@ -988,6 +1205,34 @@ export class FlutterGeneratorService {
       .toLowerCase()
       .replace(/^_/, '')
       .replace(/_+/g, '_');  // Replace multiple underscores with single
+  }
+
+  private getEndpoint(className: string): string {
+    // Spring Boot generates endpoints in lowercase without separators and always adds 's' at the end
+    // Examples: 
+    // - "Shopping Cart" → "shoppingcarts"
+    // - "OrderDetails" → "orderdetailss" (double s)
+    // - "Orders" → "orderss" (double s)
+    // - "User" → "users"
+    return className
+      .replace(/\s+/g, '')        // Remove all spaces: "Shopping Cart" → "ShoppingCart"
+      .toLowerCase()              // Convert to lowercase: "ShoppingCart" → "shoppingcart"
+      + 's';                      // Always add 's' at the end
+  }
+
+  private extractRelatedEntityName(fieldName: string): string {
+    // Extract entity name from foreign key field name
+    // Examples:
+    // - "customerId" → "Customer"
+    // - "userId" → "User"
+    // - "orderId" → "Order"
+    // - "shoppingCartId" → "ShoppingCart"
+    
+    // Remove 'Id' suffix (case insensitive)
+    let entityName = fieldName.replace(/Id$/i, '');
+    
+    // Capitalize first letter
+    return this.capitalizeFirst(entityName);
   }
 
   private capitalizeFirst(str: string): string {
