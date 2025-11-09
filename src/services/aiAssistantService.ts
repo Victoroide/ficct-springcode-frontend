@@ -254,6 +254,48 @@ class AIAssistantService {
   }
 
   /**
+   * Process image to extract UML diagram
+   */
+  async processImageToDiagram(
+    base64Image: string,
+    sessionId?: string
+  ): Promise<{
+    success: boolean;
+    data?: {
+      nodes: any[];
+      edges: any[];
+      metadata: {
+        classes_extracted: number;
+        confidence: number;
+        method: string;
+      };
+    };
+    error?: string;
+    message?: string;
+  }> {
+    this.checkAuthentication(); // BLOCK if not authenticated
+    this.checkRateLimit();
+
+    try {
+      const response = await this.makeRequest<any>(
+        '/diagrams/from-image/',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            image: base64Image,
+            session_id: sessionId || this.getSessionId()
+          }),
+          timeout: 120000 // 120 seconds timeout for image processing
+        }
+      );
+
+      return response;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
    * Get command suggestions based on current diagram state
    */
   async getCommandSuggestions(

@@ -343,6 +343,73 @@ Generated with UML SpringBoot Code Generator
     
     return stats;
   }
+
+  /**
+   * Create Flutter project ZIP with correct folder structure
+   * @param files - Map of filename -> content
+   * @param projectName - Flutter project name (snake_case)
+   */
+  static async createFlutterProjectZip(
+    files: Map<string, string>,
+    projectName: string = 'flutter_app'
+  ): Promise<Blob> {
+    try {
+      const zip = new JSZip();
+      
+      // Create root project folder
+      const projectFolder = zip.folder(projectName);
+      if (!projectFolder) {
+        throw new Error('Could not create project folder');
+      }
+
+      // Add all files to ZIP with correct paths
+      files.forEach((content, filename) => {
+        projectFolder.file(filename, content);
+      });
+
+      // Generate ZIP blob
+      const zipBlob = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: {
+          level: 6
+        }
+      });
+      
+      return zipBlob;
+
+    } catch (error) {
+      console.error('Error creating Flutter ZIP:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Download Flutter project as ZIP file
+   * @param files - Generated Flutter files
+   * @param projectName - Project name
+   */
+  static async downloadFlutterProject(
+    files: Map<string, string>,
+    projectName: string
+  ): Promise<void> {
+    try {
+      const zipBlob = await this.createFlutterProjectZip(files, projectName);
+      const url = URL.createObjectURL(zipBlob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${projectName}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading Flutter project:', error);
+      throw error;
+    }
+  }
 }
 
 // Export default instance

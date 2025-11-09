@@ -3,11 +3,18 @@
  * Versión simplificada del toolbar para UML Editor Fixed
  */
 
-import React, { useCallback, useState } from 'react';
-import { MousePointer, Move, Box, Code, Database, Trash, Save, FileCode, Brain, Lock } from 'lucide-react';
+import React, { useCallback, useState, useRef } from 'react';
+import { MousePointer, Move, Box, Code, Database, Trash, Save, FileCode, Brain, Lock, ChevronDown } from 'lucide-react';
 import CodeGenerator from './CodeGenerator';
+import FlutterCodeGenerator from './FlutterCodeGenerator';
 import { useAIAuthentication } from '@/hooks/useAIAuthentication';
 import { AIPasswordModal } from '../ai-assistant/AIPasswordModal';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { EditorMode } from './types';
 
 interface UMLToolbarSimpleProps {
@@ -41,6 +48,8 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
   isAIAssistantOpen
 }) => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showFlutterGenerator, setShowFlutterGenerator] = useState(false);
+  const springBootButtonRef = useRef<HTMLButtonElement>(null);
   const { isAuthenticated, authenticateUser, attempts, maxAttempts } = useAIAuthentication();
 
   const handleCreateNode = (type: string) => {
@@ -203,9 +212,42 @@ const UMLToolbarSimple: React.FC<UMLToolbarSimpleProps> = ({
           <div className="flex items-center gap-2 mb-3">
             <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Generate</span>
           </div>
-          <div className="flex items-center gap-2">
-            <CodeGenerator nodes={nodes} edges={edges} />
+          <div className="flex items-center gap-2 flex-col">
+            {/* Hidden CodeGenerator with trigger button */}
+            <div style={{ display: 'none' }}>
+              <CodeGenerator nodes={nodes} edges={edges} />
+            </div>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 rounded hover:bg-blue-50 text-blue-600 border border-blue-200">
+                <FileCode className="h-4 w-4" />
+                <span className="text-sm">Generate Code</span>
+                <ChevronDown className="h-3 w-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem onClick={() => {
+                  // Trigger the hidden CodeGenerator button
+                  const button = document.querySelector('[title="Generate SpringBoot Code - Generate Java code from your UML diagram"]') as HTMLButtonElement;
+                  if (button) button.click();
+                }}>
+                  <Code className="mr-2 h-4 w-4" />
+                  <span>Spring Boot Project</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowFlutterGenerator(true)}>
+                  <Database className="mr-2 h-4 w-4" />
+                  <span>Flutter App</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
+
+          {/* Flutter Generator Dialog */}
+          <FlutterCodeGenerator
+            nodes={nodes}
+            edges={edges}
+            isOpen={showFlutterGenerator}
+            onClose={() => setShowFlutterGenerator(false)}
+          />
         </>
       )}
     </div>

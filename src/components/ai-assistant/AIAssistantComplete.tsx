@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
 import ElementPreviewCard from './ElementPreviewCard';
+import ImageUploadModal from './ImageUploadModal';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Brain,
@@ -37,7 +38,8 @@ import {
   XCircle,
   Lightbulb,
   AlertCircle,
-  Info
+  Info,
+  Image as ImageIcon
 } from 'lucide-react';
 
 import { aiAssistantService } from '@/services/aiAssistantService';
@@ -129,6 +131,10 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
   const [isMicrophoneSupported, setIsMicrophoneSupported] = useState(false);
   const [commandSuggestions, setCommandSuggestions] = useState<string[]>([]);
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  
+  // Image upload states
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
   const recognitionRef = useRef<any>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -369,12 +375,12 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
                 id: edgeData.id || `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 source: edgeData.source,
                 target: edgeData.target,
-                type: edgeData.type || 'custom',
+                type: 'umlRelationship',
                 data: {
                   relationshipType: (edgeData.data?.relationshipType || 'ASSOCIATION') as any,
-                  sourceMultiplicity: edgeData.data?.sourceMultiplicity,
-                  targetMultiplicity: edgeData.data?.targetMultiplicity,
-                  label: edgeData.data?.label
+                  sourceMultiplicity: edgeData.data?.sourceMultiplicity || '1',
+                  targetMultiplicity: edgeData.data?.targetMultiplicity || '1',
+                  label: edgeData.data?.label || ''
                 }
               });
             } else {
@@ -398,12 +404,12 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
                 id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 source: sourceNode.id,
                 target: targetNode.id,
-                type: 'custom',
+                type: 'umlRelationship',
                 data: {
                   relationshipType: (rec.element_data?.type || rec.data?.relationshipType || 'ASSOCIATION') as any,
-                  sourceMultiplicity: rec.element_data?.sourceMultiplicity || rec.data?.sourceMultiplicity,
-                  targetMultiplicity: rec.element_data?.targetMultiplicity || rec.data?.targetMultiplicity,
-                  label: rec.element_data?.label || rec.data?.label
+                  sourceMultiplicity: rec.element_data?.sourceMultiplicity || rec.data?.sourceMultiplicity || '1',
+                  targetMultiplicity: rec.element_data?.targetMultiplicity || rec.data?.targetMultiplicity || '1',
+                  label: rec.element_data?.label || rec.data?.label || ''
                 }
               });
             } else {
@@ -447,6 +453,145 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
       description: 'Los elementos generados han sido descartados.', 
       variant: 'default' 
     });
+  };
+
+  // Handle image upload and processing
+  const handleImageProcessed = async (base64Image: string) => {
+    setIsProcessingImage(true);
+    const startTime = Date.now();
+    
+    try {
+      const sessionId = localStorage.getItem('diagram_session') || 'anonymous';
+      const response = await aiAssistantService.processImageToDiagram(base64Image, sessionId);
+      
+      const processingTime = Date.now() - startTime;
+      
+      if (response.success && response.data) {
+        const { nodes, edges, metadata } = response.data;
+        
+        // Apply elements directly to canvas (same format as createClassNode)
+        const newNodes: UMLNode[] = [];
+        const newEdges: UMLEdge[] = [];
+        
+        // Helper to transform backend format to frontend format
+        const transformMethod = (method: any) => {
+          // Backend sends parameters as string, frontend expects array
+          let parameters = [];
+          if (method.parameters && typeof method.parameters === 'string' && method.parameters.trim()) {
+            // Try to parse simple parameter format "param1: Type1, param2: Type2"
+            const paramParts = method.parameters.split(',').map((p: string) => p.trim());
+            parameters = paramParts.map((p: string) => {
+              const [name, type] = p.split(':').map((s: string) => s.trim());
+              return { 
+                id: `param-${Date.now()}-${Math.random()}`,
+                name: name || 'param', 
+                type: type || 'any' 
+              };
+            });
+          }
+          
+          return {
+            id: `method-${Date.now()}-${Math.random()}`,
+            name: method.name || 'method',
+            parameters: parameters,
+            returnType: method.returnType || 'void',
+            visibility: method.visibility || 'public',
+            isStatic: method.isStatic || false,
+            isAbstract: method.isAbstract || false
+          };
+        };
+        
+        const transformAttribute = (attr: any) => {
+          return {
+            id: `attr-${Date.now()}-${Math.random()}`,
+            name: attr.name || 'attribute',
+            type: attr.type || 'String',
+            visibility: attr.visibility || 'private',
+            isStatic: attr.isStatic || false
+          };
+        };
+        
+        // Process nodes from backend - use exact same structure as UMLFlowEditorBase.createClassNode
+        nodes.forEach((nodeData: any) => {
+          const suggestedPosition = nodeData.position || { x: Math.random() * 400 + 100, y: Math.random() * 300 + 100 };
+          const adjustedPosition = calculateNonOverlappingPosition(suggestedPosition, [...diagramNodes, ...newNodes]);
+          
+          // Transform attributes and methods to frontend format
+          const attributes = (nodeData.data?.attributes || []).map(transformAttribute);
+          const methods = (nodeData.data?.methods || []).map(transformMethod);
+          
+          newNodes.push({
+            id: nodeData.id || `class-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            type: 'class', // CRITICAL: Must be 'class', not 'classNode'
+            position: adjustedPosition,
+            data: {
+              label: nodeData.data?.label || 'Unnamed',
+              nodeType: 'class' as any, // CRITICAL: Must be 'class'
+              attributes: attributes,
+              methods: methods,
+              isAbstract: nodeData.data?.isAbstract || false
+            }
+          });
+        });
+        
+        // Process edges from backend - use exact same structure as normal edges
+        edges.forEach((edgeData: any) => {
+          const allNodes = [...diagramNodes, ...newNodes];
+          
+          // Check if source and target exist by ID
+          const sourceExists = allNodes.some(n => n.id === edgeData.source);
+          const targetExists = allNodes.some(n => n.id === edgeData.target);
+          
+          if (sourceExists && targetExists) {
+            newEdges.push({
+              id: edgeData.id || `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              source: edgeData.source,
+              target: edgeData.target,
+              type: 'umlRelationship', // CRITICAL: Must be 'umlRelationship', not 'custom'
+              data: {
+                relationshipType: (edgeData.data?.relationshipType || 'ASSOCIATION') as any,
+                sourceMultiplicity: edgeData.data?.sourceMultiplicity || '1',
+                targetMultiplicity: edgeData.data?.targetMultiplicity || '1',
+                label: edgeData.data?.label || ''
+              }
+            });
+          } else {
+            console.warn('Edge source or target node not found:', edgeData.source, edgeData.target);
+          }
+        });
+        
+        // Apply to canvas
+        if (newNodes.length > 0 || newEdges.length > 0) {
+          if (onElementsGenerated) {
+            onElementsGenerated({ nodes: newNodes, edges: newEdges });
+          }
+          
+          toast({ 
+            title: 'Diagrama extraído exitosamente', 
+            description: `Se agregaron ${newNodes.length} clase(s) y ${newEdges.length} relación(es). Tiempo: ${(processingTime / 1000).toFixed(1)}s`, 
+            variant: 'default' 
+          });
+        } else {
+          toast({ 
+            title: 'No se detectaron elementos', 
+            description: 'No se encontraron elementos UML en la imagen. Intenta con una imagen más clara.', 
+            variant: 'destructive' 
+          });
+        }
+      } else {
+        throw new Error(response.message || 'No se pudo procesar la imagen');
+      }
+    } catch (error: any) {
+      const errorMsg = error.message || 'Error al procesar la imagen';
+      toast({ 
+        title: 'Error al procesar imagen', 
+        description: errorMsg, 
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsProcessingImage(false);
+      setIsImageModalOpen(false);
+    }
   };
 
   // Request microphone permissions
@@ -689,6 +834,16 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
                     disabled={isChatLoading || voiceState.isListening} 
                     className="flex-1 bg-white border-gray-300" 
                   />
+                  <Button
+                    onClick={() => setIsImageModalOpen(true)}
+                    disabled={isChatLoading || isProcessingImage}
+                    variant="outline"
+                    size="sm"
+                    className="px-3 bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
+                    title="Subir imagen de diagrama UML"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                  </Button>
                   {isMicrophoneSupported && (
                     <Button
                       onClick={handleToggleVoiceChat}
@@ -866,6 +1021,16 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
                     disabled={isProcessing || voiceState.isListening} 
                     className="flex-1 bg-white border-gray-300" 
                   />
+                  <Button
+                    onClick={() => setIsImageModalOpen(true)}
+                    disabled={isProcessing || isProcessingImage}
+                    variant="outline"
+                    size="sm"
+                    className="px-3 bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
+                    title="Subir imagen de diagrama UML"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                  </Button>
                   {isMicrophoneSupported && (
                     <Button
                       onClick={handleToggleVoiceCommand}
@@ -896,6 +1061,14 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
           </Tabs>
         </CardContent>
       </Card>
+      
+      {/* Image Upload Modal */}
+      <ImageUploadModal
+        isOpen={isImageModalOpen}
+        onClose={() => setIsImageModalOpen(false)}
+        onImageProcessed={handleImageProcessed}
+        isProcessing={isProcessingImage}
+      />
     </div>
   );
 };

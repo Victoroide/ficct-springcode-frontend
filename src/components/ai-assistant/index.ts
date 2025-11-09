@@ -7,6 +7,7 @@ export { default as AIAssistant } from './AIAssistantComplete';
 export { default as ResponseDisplay } from './ResponseDisplay';
 export { default as LoadingIndicator, MiniLoadingIndicator } from './LoadingIndicator';
 export { default as HealthStatus } from './HealthStatus';
+export { default as ImageUploadModal } from './ImageUploadModal';
 
 // Re-export types
 export type {
