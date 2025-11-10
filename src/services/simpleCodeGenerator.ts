@@ -909,49 +909,254 @@ src/
 └── test/
 \`\`\`
 
-## Setup and Execution
+## 🚀 Setup and Execution - STEP BY STEP GUIDE
 
 ### Prerequisites
-- Java 11+
-- Maven 3.6+
-- PostgreSQL 12+ (running on localhost:5432)
 
-### Database Setup
+Before starting, ensure you have:
+- ✅ **Java 11 or higher** - [Download here](https://adoptium.net/)
+- ✅ **Maven 3.6+** - [Download here](https://maven.apache.org/download.cgi)
+- ✅ **PostgreSQL 12+** - [Download here](https://www.postgresql.org/download/)
 
-1. **Install PostgreSQL** (if not already installed)
-   - Download from: https://www.postgresql.org/download/
-   - Or use Docker: \`docker run --name postgres-db -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres\`
+Verify installations:
+\`\`\`bash
+java -version      # Should show Java 11+
+mvn -version       # Should show Maven 3.6+
+psql --version     # Should show PostgreSQL 12+
+\`\`\`
 
-2. **Create Database**
-   \`\`\`sql
-   -- Connect to PostgreSQL
-   psql -U postgres
-   
-   -- Create database
-   CREATE DATABASE springboot_db;
-   
-   -- Verify
-   \\l
+---
+
+## 📦 STEP 1: Download and Extract Project
+
+1. **Download** the generated \`${this.config.name}.zip\` file
+2. **Extract** the ZIP to your desired location
+3. **Navigate** to the project folder:
+   \`\`\`bash
+   cd ${this.config.name.toLowerCase().replace(/\s+/g, '-')}
    \`\`\`
 
-3. **Configure Database** (optional)
-   - Edit \`src/main/resources/application.properties\`
-   - Update credentials if different from defaults:
-     - Username: \`postgres\`
-     - Password: \`postgres\`
-     - Database: \`springboot_db\`
+---
 
-### Build the project
+## 🗄️ STEP 2: PostgreSQL Database Setup
+
+**⚠️ CRITICAL:** You MUST create the database and configure credentials BEFORE running the backend, otherwise you'll get connection errors.
+
+### Option A: Using pgAdmin (Recommended for Windows Users)
+
+1. **Open pgAdmin** (installed with PostgreSQL)
+2. **Connect to PostgreSQL Server**:
+   - Right-click on "PostgreSQL 12" (or your version)
+   - Enter your PostgreSQL master password (set during installation)
+3. **Create Database**:
+   - Right-click on "Databases"
+   - Select "Create" → "Database..."
+   - Database name: \`springboot_db\`
+   - Owner: \`postgres\`
+   - Click "Save"
+4. **Verify**: You should see \`springboot_db\` in the database list
+
+### Option B: Using Command Line (psql)
+
+**Windows:**
+\`\`\`bash
+# Open Command Prompt or PowerShell
+# Navigate to PostgreSQL bin directory (example):
+cd "C:\\Program Files\\PostgreSQL\\14\\bin"
+
+# Connect to PostgreSQL
+psql -U postgres
+
+# Enter your PostgreSQL password when prompted
+# Then create the database:
+CREATE DATABASE springboot_db;
+
+# Verify creation:
+\\l
+
+# Exit:
+\\q
+\`\`\`
+
+**Linux/Mac:**
+\`\`\`bash
+# Connect to PostgreSQL
+sudo -u postgres psql
+
+# Create database
+CREATE DATABASE springboot_db;
+
+# Verify
+\\l
+
+# Exit
+\\q
+\`\`\`
+
+### Option C: Using Docker (For Advanced Users)
+
+\`\`\`bash
+# Run PostgreSQL in Docker with database pre-created
+docker run --name postgres-springboot \\
+  -e POSTGRES_PASSWORD=postgres \\
+  -e POSTGRES_DB=springboot_db \\
+  -p 5432:5432 \\
+  -d postgres:14
+
+# Verify container is running
+docker ps
+
+# To stop: docker stop postgres-springboot
+# To start: docker start postgres-springboot
+\`\`\`
+
+---
+
+## ⚙️ STEP 3: Configure Database Credentials
+
+**⚠️ IMPORTANT:** The default configuration assumes:
+- Username: \`postgres\`
+- Password: \`postgres\`
+- Database: \`springboot_db\`
+- Host: \`localhost\`
+- Port: \`5432\`
+
+**If your PostgreSQL has DIFFERENT credentials:**
+
+1. Open \`src/main/resources/application.properties\`
+2. Update these lines with YOUR actual credentials:
+   \`\`\`properties
+   spring.datasource.url=jdbc:postgresql://localhost:5432/springboot_db
+   spring.datasource.username=postgres          # ← Change if different
+   spring.datasource.password=postgres          # ← Change if different
+   \`\`\`
+
+**Common mistakes:**
+- ❌ Using wrong password (most common error!)
+- ❌ Database name doesn't match (case-sensitive on Linux)
+- ❌ PostgreSQL not running on port 5432
+- ❌ Firewall blocking port 5432
+
+---
+
+## 🏗️ STEP 4: Build the Project
+
 \`\`\`bash
 mvn clean install
 \`\`\`
 
-### Run the application
+**Expected output:**
+\`\`\`
+[INFO] BUILD SUCCESS
+[INFO] Total time: XX.XXX s
+\`\`\`
+
+**If build fails:**
+- Check Java version: \`java -version\`
+- Check Maven version: \`mvn -version\`
+- Delete \`target/\` folder and try again
+
+---
+
+## ▶️ STEP 5: Run the Application
+
 \`\`\`bash
 mvn spring-boot:run
 \`\`\`
 
-The application will start on port **8080** and automatically create tables in PostgreSQL.
+**Expected output:**
+\`\`\`
+  .   ____          _            __ _ _
+ /\\\\ / ___'_ __ _ _(_)_ __  __ _ \\ \\ \\ \\
+( ( )\\___ | '_ | '_| | '_ \\/ _\` | \\ \\ \\ \\
+ \\\\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::        (v2.7.18)
+
+...
+Started Application in X.XXX seconds
+\`\`\`
+
+**✅ Success indicators:**
+- No red ERROR messages
+- Message: "Started Application in X seconds"
+- Port 8080 is active
+- Database tables automatically created
+
+**❌ Common errors and solutions:**
+
+1. **"Connection refused" or "password authentication failed"**
+   - ✔️ Check PostgreSQL is running
+   - ✔️ Verify username/password in \`application.properties\`
+   - ✔️ Ensure database \`springboot_db\` exists
+
+2. **"Port 8080 already in use"**
+   - ✔️ Kill process using port 8080
+   - ✔️ Or change port in \`application.properties\`: \`server.port=8081\`
+
+3. **"Could not find or load main class"**
+   - ✔️ Run \`mvn clean install\` again
+   - ✔️ Check Java version matches project requirements
+
+---
+
+## ✅ STEP 6: Verify Backend is Working
+
+### Check 1: Health Endpoint
+\`\`\`bash
+curl http://localhost:8080/api/health
+\`\`\`
+**Expected response:**
+\`\`\`json
+{
+  "status": "UP",
+  "timestamp": "2025-11-10T...",
+  "application": "${this.config.name}",
+  "version": "${this.config.version}"
+}
+\`\`\`
+
+### Check 2: Swagger UI
+Open browser: **http://localhost:8080/swagger-ui/index.html**
+
+You should see:
+- ✅ Interactive API documentation
+- ✅ List of all endpoints
+- ✅ Ability to test endpoints
+
+### Check 3: Database Tables
+Connect to PostgreSQL and verify tables were created:
+
+**Using pgAdmin:**
+1. Expand: Databases → springboot_db → Schemas → public → Tables
+2. You should see all your entity tables
+
+**Using psql:**
+\`\`\`bash
+psql -U postgres -d springboot_db
+\\dt
+\`\`\`
+
+---
+
+## 🎯 Quick Start Summary
+
+\`\`\`bash
+# 1. Create database (one-time setup)
+psql -U postgres -c "CREATE DATABASE springboot_db;"
+
+# 2. Verify application.properties has correct credentials
+
+# 3. Build and run
+mvn clean install
+mvn spring-boot:run
+
+# 4. Test
+curl http://localhost:8080/api/health
+\`\`\`
+
+---
 
 ## Testing the API
 

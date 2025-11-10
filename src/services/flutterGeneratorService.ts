@@ -63,6 +63,9 @@ export class FlutterGeneratorService {
     // 9. Generate README.md
     this.generateReadme(files);
 
+    // 10. Generate update scripts for API URL
+    this.generateUpdateScripts(files);
+
     return files;
   }
 
@@ -125,10 +128,9 @@ export class FlutterGeneratorService {
     code += `@JsonSerializable(explicitToJson: true)\n`;
     code += `class ${className} {\n`;
 
-    // Generate attributes
+    // Generate attributes (never use private prefix in Dart models)
     attributes.forEach((attr: any) => {
       const dartType = this.mapUMLTypeToDart(attr.type);
-      const prefix = attr.visibility === 'private' ? '_' : '';
       const nullable = attr.isFinal ? '' : '?';
       
       // Add JsonKey annotation with fromJson/toJson converters for safe type casting
@@ -148,17 +150,16 @@ export class FlutterGeneratorService {
       
       jsonKeyAnnotation += `)\n`;
       code += jsonKeyAnnotation;
-      code += `  final ${dartType}${nullable} ${prefix}${attr.name};\n`;
+      code += `  final ${dartType}${nullable} ${attr.name};\n`;
     });
 
     code += `\n`;
 
-    // Generate constructor
+    // Generate constructor (never use private prefix)
     code += `  ${className}({\n`;
     attributes.forEach((attr: any, index: number) => {
-      const prefix = attr.visibility === 'private' ? '_' : '';
       const required = attr.isFinal ? 'required ' : '';
-      code += `    ${required}this.${prefix}${attr.name}`;
+      code += `    ${required}this.${attr.name}`;
       if (index < attributes.length - 1) code += ',';
       code += '\n';
     });
@@ -249,7 +250,8 @@ export class FlutterGeneratorService {
     // Getters
     code += `  List<${className}> get items => _items;\n`;
     code += `  bool get isLoading => _isLoading;\n`;
-    code += `  String? get error => _error;\n\n`;
+    code += `  String? get error => _error;\n`;
+    code += `  String? get errorMessage => _error; // Alias for error\n\n`;
 
     // Fetch all
     code += `  Future<void> fetchItems() async {\n`;
@@ -339,11 +341,14 @@ export class FlutterGeneratorService {
     const screenName = `${className}FormScreen`;
 
     // Detect foreign key fields (fields ending with 'Id' except 'id')
-    const foreignKeys = attributes.filter((attr: any) => 
-      attr.name !== 'id' && 
-      attr.name.toLowerCase().endsWith('id') &&
-      (attr.type === 'Integer' || attr.type === 'int')
-    );
+    // Only include foreign keys where the related entity exists in the diagram
+    const foreignKeys = attributes.filter((attr: any) => {
+      if (attr.name === 'id' || !attr.name.toLowerCase().endsWith('id')) {
+        return false;
+      }
+      const relatedEntity = this.extractRelatedEntityName(attr.name);
+      return this.entityExists(relatedEntity);
+    });
 
     let code = `import 'package:flutter/material.dart';\n`;
     code += `import 'package:provider/provider.dart';\n`;
@@ -351,11 +356,14 @@ export class FlutterGeneratorService {
     code += `import '../models/${fileName}.dart';\n`;
     code += `import '../providers/${fileName}_provider.dart';\n`;
     
-    // Import providers for foreign key entities
+    // Import providers for foreign key entities (only if they exist)
     foreignKeys.forEach((fk: any) => {
       const relatedEntity = this.extractRelatedEntityName(fk.name);
-      const relatedFileName = this.sanitizeFileName(relatedEntity);
-      code += `import '../providers/${relatedFileName}_provider.dart';\n`;
+      const actualEntityName = this.findActualEntityName(relatedEntity);
+      if (actualEntityName) {
+        const relatedFileName = this.sanitizeFileName(actualEntityName);
+        code += `import '../providers/${relatedFileName}_provider.dart';\n`;
+      }
     });
     
     code += `\n`;
@@ -396,17 +404,19 @@ export class FlutterGeneratorService {
     // Load foreign key data
     foreignKeys.forEach((fk: any) => {
       const relatedEntity = this.extractRelatedEntityName(fk.name);
-      const relatedClassName = this.sanitizeClassName(relatedEntity);
-      code += `    Future.microtask(() => context.read<${relatedClassName}Provider>().fetchItems());\n`;
+      const actualEntityName = this.findActualEntityName(relatedEntity);
+      if (actualEntityName) {
+        const relatedClassName = this.sanitizeClassName(actualEntityName);
+        code += `    Future.microtask(() => context.read<${relatedClassName}Provider>().fetchItems());\n`;
+      }
     });
     
     code += `    if (widget.item != null) {\n`;
     attributes.forEach((attr: any) => {
-      const prefix = attr.visibility === 'private' ? '_' : '';
       if (attr.type === 'Boolean') {
-        code += `      _${attr.name} = widget.item!.${prefix}${attr.name} ?? false;\n`;
+        code += `      _${attr.name} = widget.item!.${attr.name} ?? false;\n`;
       } else {
-        code += `      _${attr.name}Controller.text = widget.item!.${prefix}${attr.name}?.toString() ?? '';\n`;
+        code += `      _${attr.name}Controller.text = widget.item!.${attr.name}?.toString() ?? '';\n`;
       }
     });
     code += `    }\n`;
@@ -427,9 +437,12 @@ export class FlutterGeneratorService {
 
     // Generate form fields
     attributes.forEach((attr: any) => {
+      // Check if this is a foreign key field AND the related entity exists
       const isForeignKey = attr.name !== 'id' && 
-                          attr.name.toLowerCase().endsWith('id') && 
-                          (attr.type === 'Integer' || attr.type === 'int');
+                          attr.name.toLowerCase().endsWith('id');
+      const relatedEntity = isForeignKey ? this.extractRelatedEntityName(attr.name) : '';
+      const actualEntityName = isForeignKey ? this.findActualEntityName(relatedEntity) : null;
+      const entityExists = actualEntityName !== null;
       
       if (attr.type === 'Boolean') {
         code += `              SwitchListTile(\n`;
@@ -439,11 +452,10 @@ export class FlutterGeneratorService {
         code += `                  setState(() => _${attr.name} = value);\n`;
         code += `                },\n`;
         code += `              ),\n`;
-      } else if (isForeignKey) {
-        // Generate selector button with modal for foreign keys
-        const relatedEntity = this.extractRelatedEntityName(attr.name);
-        const relatedClassName = this.sanitizeClassName(relatedEntity);
-        const relatedFileName = this.sanitizeFileName(relatedEntity);
+      } else if (isForeignKey && entityExists && actualEntityName) {
+        // Generate selector button with modal for foreign keys (only if entity exists)
+        const relatedClassName = this.sanitizeClassName(actualEntityName);
+        const relatedFileName = this.sanitizeFileName(actualEntityName);
         
         code += `              // Foreign key selector for ${attr.name}\n`;
         code += `              Padding(\n`;
@@ -526,15 +538,14 @@ export class FlutterGeneratorService {
     code += `      final provider = context.read<${className}Provider>();\n`;
     code += `      final item = ${className}(\n`;
     attributes.forEach((attr: any, index: number) => {
-      const prefix = attr.visibility === 'private' ? '_' : '';
       if (attr.type === 'Boolean') {
-        code += `        ${prefix}${attr.name}: _${attr.name}`;
+        code += `        ${attr.name}: _${attr.name}`;
       } else if (attr.type === 'Integer' || attr.type === 'int') {
-        code += `        ${prefix}${attr.name}: int.tryParse(_${attr.name}Controller.text)`;
+        code += `        ${attr.name}: int.tryParse(_${attr.name}Controller.text)`;
       } else if (attr.type === 'Double' || attr.type === 'double') {
-        code += `        ${prefix}${attr.name}: double.tryParse(_${attr.name}Controller.text)`;
+        code += `        ${attr.name}: double.tryParse(_${attr.name}Controller.text)`;
       } else {
-        code += `        ${prefix}${attr.name}: _${attr.name}Controller.text`;
+        code += `        ${attr.name}: _${attr.name}Controller.text`;
       }
       if (index < attributes.length - 1) code += ',';
       code += '\n';
@@ -556,7 +567,10 @@ export class FlutterGeneratorService {
     // Generate selector methods for foreign keys
     foreignKeys.forEach((fk: any) => {
       const relatedEntity = this.extractRelatedEntityName(fk.name);
-      const relatedClassName = this.sanitizeClassName(relatedEntity);
+      const actualEntityName = this.findActualEntityName(relatedEntity);
+      if (!actualEntityName) return; // Skip if entity doesn't exist
+      
+      const relatedClassName = this.sanitizeClassName(actualEntityName);
       
       code += `  // Selector method for ${fk.name}\n`;
       code += `  void _select${this.capitalizeFirst(fk.name)}(BuildContext context) async {\n`;
@@ -571,26 +585,26 @@ export class FlutterGeneratorService {
       code += `          height: 400,\n`;
       code += `          child: Consumer<${relatedClassName}Provider>(\n`;
       code += `            builder: (context, provider, child) {\n`;
-      code += `              if (provider.isLoading) {\n`;
+      code += `              if (provider?.isLoading ?? false) {\n`;
       code += `                return const Center(child: CircularProgressIndicator());\n`;
       code += `              }\n`;
       code += `              \n`;
-      code += `              if (provider.errorMessage != null) {\n`;
+      code += `              if (provider?.errorMessage != null) {\n`;
       code += `                return Center(\n`;
-      code += `                  child: Text('Error: \${provider.errorMessage}'),\n`;
+      code += `                  child: Text('Error: \${provider?.errorMessage ?? "Unknown error"}'),\n`;
       code += `                );\n`;
       code += `              }\n`;
       code += `              \n`;
-      code += `              if (provider.items.isEmpty) {\n`;
+      code += `              if (provider?.items.isEmpty ?? true) {\n`;
       code += `                return const Center(\n`;
       code += `                  child: Text('No ${relatedClassName} available'),\n`;
       code += `                );\n`;
       code += `              }\n`;
       code += `              \n`;
       code += `              return ListView.builder(\n`;
-      code += `                itemCount: provider.items.length,\n`;
+      code += `                itemCount: provider?.items.length ?? 0,\n`;
       code += `                itemBuilder: (context, index) {\n`;
-      code += `                  final item = provider.items[index];\n`;
+      code += `                  final item = provider!.items[index];\n`;
       code += `                  final jsonData = item.toJson();\n`;
       code += `                  final prettyJson = const JsonEncoder.withIndent('  ').convert(jsonData);\n`;
       code += `                  \n`;
@@ -1140,34 +1154,463 @@ export class FlutterGeneratorService {
   private generateReadme(files: Map<string, string>): void {
     let code = `# ${this.config.projectName}\n\n`;
     code += `${this.config.description}\n\n`;
-    code += `## Generated with UML Spring Code Tool\n\n`;
-    code += `This Flutter project was automatically generated from a UML class diagram.\n\n`;
-    code += `## Getting Started\n\n`;
-    code += `1. Install dependencies:\n\`\`\`bash\nflutter pub get\n\`\`\`\n\n`;
-    code += `2. Generate JSON serialization code:\n\`\`\`bash\nflutter pub run build_runner build\n\`\`\`\n\n`;
-    code += `3. Run the app:\n\`\`\`bash\nflutter run\n\`\`\`\n\n`;
-    code += `## Project Structure\n\n`;
-    code += `- \`lib/models/\` - Data models with JSON serialization\n`;
-    code += `- \`lib/providers/\` - State management (${this.config.stateManagement})\n`;
-    code += `- \`lib/screens/\` - UI screens (forms and lists)\n`;
-    code += `- \`lib/services/\` - API service for backend communication\n`;
-    code += `- \`lib/widgets/\` - Reusable widgets\n\n`;
-    code += `## Backend Configuration\n\n`;
-    code += `API Base URL: \`${this.config.apiConfig.baseUrl}\`\n\n`;
-    code += `Make sure your Spring Boot backend is running on this URL.\n\n`;
-    code += `## Features\n\n`;
+    code += `## 📱 Technology Stack\n\n`;
+    code += `- **Framework:** Flutter ${this.config.theme.themeMode === 'cupertino' ? '(iOS Style)' : '(Material 3)'}\n`;
+    code += `- **State Management:** ${this.config.stateManagement}\n`;
+    code += `- **Navigation:** ${this.config.navigation.type}\n`;
+    code += `- **Backend API:** ${this.config.apiConfig.baseUrl}\n\n`;
+    code += `---\n\n`;
+    
+    code += `## 🚀 Setup and Execution - STEP BY STEP GUIDE\n\n`;
+    
+    code += `### Prerequisites\n\n`;
+    code += `Before starting, verify you have installed:\n\n`;
+    code += `- **Flutter SDK 3.0+**\n`;
+    code += `  \`\`\`bash\n  flutter --version\n  \`\`\`\n\n`;
+    code += `- **Android Studio / VS Code** with Flutter extension\n\n`;
+    code += `- **Physical Device or Emulator**\n`;
+    code += `  \`\`\`bash\n  flutter devices\n  \`\`\`\n\n`;
+    code += `- **Backend Running** (Spring Boot server must be running on port 8080)\n\n`;
+    code += `---\n\n`;
+    
+    code += `## STEP 1: Download and Extract Project\n\n`;
+    code += `1. Download the ZIP file\n`;
+    code += `2. Extract to a folder (avoid paths with spaces)\n`;
+    code += `3. Open terminal in project folder\n\n`;
+    code += `\`\`\`bash\ncd path/to/${this.config.projectName}\n\`\`\`\n\n`;
+    code += `---\n\n`;
+    
+    code += `## STEP 2: Install Dependencies\n\n`;
+    code += `Run Flutter pub get to download all required packages:\n\n`;
+    code += `\`\`\`bash\nflutter pub get\n\`\`\`\n\n`;
+    code += `**Expected output:**\n`;
+    code += `\`\`\`\nRunning "flutter pub get" in ${this.config.projectName}...\nResolving dependencies... \nGot dependencies!\n\`\`\`\n\n`;
+    code += `**Common errors:**\n`;
+    code += `- ❌ **"Flutter SDK not found"** → Install Flutter: https://flutter.dev/docs/get-started/install\n`;
+    code += `- ❌ **"Pub get failed"** → Run \`flutter clean\` then retry\n\n`;
+    code += `---\n\n`;
+    
+    code += `## STEP 3: Generate JSON Serialization Code\n\n`;
+    code += `The project uses \`json_serializable\` for automatic JSON parsing. Generate the required code:\n\n`;
+    code += `\`\`\`bash\nflutter pub run build_runner build --delete-conflicting-outputs\n\`\`\`\n\n`;
+    code += `**Expected output:**\n`;
+    code += `\`\`\`\n[INFO] Generating build script...\n[INFO] Succeeded after 5.2s with 42 outputs\n\`\`\`\n\n`;
+    code += `**Common errors:**\n`;
+    code += `- ❌ **"Conflicting outputs"** → Already handled with \`--delete-conflicting-outputs\` flag\n`;
+    code += `- ❌ **"build_runner not found"** → Run \`flutter pub get\` first\n\n`;
+    code += `---\n\n`;
+    
+    code += `## STEP 4: Initialize Flutter Project Structure\n\n`;
+    code += `This generated project needs Flutter to create platform-specific files (Android/iOS):\n\n`;
+    code += `\`\`\`bash\nflutter create .\n\`\`\`\n\n`;
+    code += `⚠️ **IMPORTANT:** When prompted "Overwrite files?", select:\n`;
+    code += `- ❌ **NO** for: \`lib/\`, \`pubspec.yaml\`, \`README.md\`\n`;
+    code += `- ✅ **YES** for: \`android/\`, \`ios/\`, \`web/\`\n\n`;
+    code += `**Or use this command to avoid prompts:**\n`;
+    code += `\`\`\`bash\nflutter create --org com.example .\n\`\`\`\n\n`;
+    code += `---\n\n`;
+    
+    code += `## STEP 5: Configure Backend API URL ⚠️ CRITICAL\n\n`;
+    code += `The app needs to connect to your Spring Boot backend. The IP address changes depending on your network.\n\n`;
+    
+    code += `### Option A: Quick Manual Update (Recommended for Demos)\n\n`;
+    code += `1. **Find your PC's IP address:**\n\n`;
+    code += `   **Windows:**\n`;
+    code += `   \`\`\`bash\n   ipconfig\n   \`\`\`\n`;
+    code += `   Look for "IPv4 Address" in your active network adapter (e.g., \`192.168.0.5\`)\n\n`;
+    code += `   **Linux/Mac:**\n`;
+    code += `   \`\`\`bash\n   ifconfig | grep "inet " | grep -v 127.0.0.1\n   \`\`\`\n\n`;
+    code += `2. **Open \`lib/services/api_service.dart\`**\n\n`;
+    code += `3. **Find the line:**\n`;
+    code += `   \`\`\`dart\n   static const String baseUrl = '${this.config.apiConfig.baseUrl}';\n   \`\`\`\n\n`;
+    code += `4. **Replace with YOUR PC's IP:**\n`;
+    code += `   \`\`\`dart\n   static const String baseUrl = 'http://YOUR_IP_HERE:8080/api/v1';\n   \`\`\`\n\n`;
+    code += `   Example:\n`;
+    code += `   \`\`\`dart\n   static const String baseUrl = 'http://192.168.1.100:8080/api/v1';\n   \`\`\`\n\n`;
+    
+    code += `### Option B: Automated Script (Windows) ⚡\n\n`;
+    code += `Create a file \`update_api_url.bat\` in project root:\n\n`;
+    code += `\`\`\`batch\n`;
+    code += `@echo off\n`;
+    code += `echo Detecting your PC IP address...\n`;
+    code += `for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /R "IPv4.*192.168"') do (\n`;
+    code += `    set IP=%%a\n`;
+    code += `    goto :found\n`;
+    code += `)\n`;
+    code += `:found\n`;
+    code += `set IP=%IP: =%\n`;
+    code += `echo Detected IP: %IP%\n\n`;
+    code += `echo Updating API URL in api_service.dart...\n`;
+    code += `powershell -Command "(Get-Content lib\\\\services\\\\api_service.dart) -replace 'http://[0-9.]+:8080', 'http://%IP%:8080' | Set-Content lib\\\\services\\\\api_service.dart"\n\n`;
+    code += `echo.\n`;
+    code += `echo ✅ API URL updated to: http://%IP%:8080/api/v1\n`;
+    code += `echo.\n`;
+    code += `echo Next steps:\n`;
+    code += `echo 1. Make sure backend is running: http://%IP%:8080\n`;
+    code += `echo 2. Run: flutter run\n`;
+    code += `pause\n`;
+    code += `\`\`\`\n\n`;
+    code += `Then run:\n`;
+    code += `\`\`\`bash\nupdate_api_url.bat\n\`\`\`\n\n`;
+    
+    code += `### Option C: Automated Script (Linux/Mac) ⚡\n\n`;
+    code += `Create a file \`update_api_url.sh\`:\n\n`;
+    code += `\`\`\`bash\n`;
+    code += `#!/bin/bash\n`;
+    code += `echo "Detecting your PC IP address..."\n`;
+    code += `IP=$(ifconfig | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -n 1)\n\n`;
+    code += `if [ -z "$IP" ]; then\n`;
+    code += `    echo "❌ Could not detect IP address"\n`;
+    code += `    echo "Please run 'ifconfig' manually and update lib/services/api_service.dart"\n`;
+    code += `    exit 1\n`;
+    code += `fi\n\n`;
+    code += `echo "Detected IP: $IP"\n`;
+    code += `echo "Updating API URL in api_service.dart..."\n\n`;
+    code += `sed -i.bak "s|baseUrl = 'http://[0-9.]*:8080|baseUrl = 'http://$IP:8080|g" lib/services/api_service.dart\n\n`;
+    code += `echo ""\n`;
+    code += `echo "✅ API URL updated to: http://$IP:8080/api/v1"\n`;
+    code += `echo ""\n`;
+    code += `echo "Next steps:"\n`;
+    code += `echo "1. Make sure backend is running: http://$IP:8080"\n`;
+    code += `echo "2. Run: flutter run"\n`;
+    code += `\`\`\`\n\n`;
+    code += `Make executable and run:\n`;
+    code += `\`\`\`bash\nchmod +x update_api_url.sh\n./update_api_url.sh\n\`\`\`\n\n`;
+    
+    code += `### 📍 Different URLs for Different Platforms\n\n`;
+    code += `- **Physical Android Device (USB):** Use PC's IP (e.g., \`http://192.168.0.5:8080\`)\n`;
+    code += `- **Android Emulator:** Use \`http://10.0.2.2:8080\` (emulator's special IP)\n`;
+    code += `- **iOS Simulator:** Use \`http://localhost:8080\`\n`;
+    code += `- **Web Browser:** Use \`http://localhost:8080\`\n\n`;
+    code += `⚠️ **For presentations/demos:** Run the script BEFORE each demo to update IP for current network!\n\n`;
+    code += `---\n\n`;
+    
+    code += `## STEP 6: Run the Application\n\n`;
+    
+    code += `### Using Physical Device (Recommended)\n\n`;
+    code += `1. **Enable USB Debugging on Android:**\n`;
+    code += `   - Settings → About Phone → Tap "Build Number" 7 times\n`;
+    code += `   - Settings → Developer Options → Enable "USB Debugging"\n\n`;
+    code += `2. **Connect device via USB**\n\n`;
+    code += `3. **Verify device is detected:**\n`;
+    code += `   \`\`\`bash\n   flutter devices\n   \`\`\`\n\n`;
+    code += `4. **Run the app:**\n`;
+    code += `   \`\`\`bash\n   flutter run\n   \`\`\`\n\n`;
+    
+    code += `### Using Emulator\n\n`;
+    code += `1. Start Android emulator from Android Studio\n\n`;
+    code += `2. Run:\n`;
+    code += `   \`\`\`bash\n   flutter run\n   \`\`\`\n\n`;
+    
+    code += `**Common errors:**\n\n`;
+    code += `❌ **"No devices found"**\n`;
+    code += `- Solution: Connect device or start emulator, then run \`flutter devices\`\n\n`;
+    code += `❌ **"Build failed - SDK not found"**\n`;
+    code += `- Solution: Set Android SDK path in Android Studio settings\n\n`;
+    code += `❌ **"Connection refused" / "SocketException"**\n`;
+    code += `- Solution 1: Verify backend is running: \`curl http://YOUR_IP:8080/api/health\`\n`;
+    code += `- Solution 2: Check IP in \`lib/services/api_service.dart\` matches PC's current IP\n`;
+    code += `- Solution 3: Ensure phone and PC on SAME WiFi network\n`;
+    code += `- Solution 4: Check firewall allows port 8080\n\n`;
+    code += `❌ **"TimeoutException"**\n`;
+    code += `- Solution: Backend is too slow or unreachable. Check backend logs.\n\n`;
+    code += `---\n\n`;
+    
+    code += `## STEP 7: Verify Application is Working\n\n`;
+    code += `### 1. Check Backend Connection\n\n`;
+    code += `The app should show a loading spinner and then display data.\n\n`;
+    code += `**If you see "Connection Error":**\n`;
+    code += `- Verify backend: \`curl http://YOUR_IP:8080/api/health\`\n`;
+    code += `- Check IP in \`api_service.dart\`\n`;
+    code += `- Ensure same WiFi network\n\n`;
+    code += `### 2. Test CRUD Operations\n\n`;
+    code += `Try creating, editing, and deleting items to verify full functionality.\n\n`;
+    code += `### 3. Check Logs\n\n`;
+    code += `If something fails:\n`;
+    code += `\`\`\`bash\nflutter logs\n\`\`\`\n\n`;
+    code += `Look for:\n`;
+    code += `- \`SocketException\` → Network issue (wrong IP or backend not running)\n`;
+    code += `- \`FormatException\` → Backend returning wrong data format\n`;
+    code += `- \`TimeoutException\` → Backend unreachable\n\n`;
+    code += `---\n\n`;
+    
+    code += `## 📖 Quick Start (For Experienced Users)\n\n`;
+    code += `\`\`\`bash\n`;
+    code += `# 1. Install dependencies\n`;
+    code += `flutter pub get\n\n`;
+    code += `# 2. Generate JSON serialization\n`;
+    code += `flutter pub run build_runner build --delete-conflicting-outputs\n\n`;
+    code += `# 3. Initialize project structure\n`;
+    code += `flutter create .\n\n`;
+    code += `# 4. Update API URL (Windows)\n`;
+    code += `update_api_url.bat\n\n`;
+    code += `# OR manually edit lib/services/api_service.dart\n\n`;
+    code += `# 5. Run on device\n`;
+    code += `flutter run\n`;
+    code += `\`\`\`\n\n`;
+    code += `---\n\n`;
+    
+    code += `## 🏗️ Project Structure\n\n`;
+    code += `\`\`\`\n`;
+    code += `lib/\n`;
+    code += `├── models/          # Data models with JSON serialization\n`;
+    code += `├── providers/       # State management (${this.config.stateManagement})\n`;
+    code += `├── screens/         # UI screens (List and Form screens)\n`;
+    code += `├── services/        # API service (HTTP client)\n`;
+    code += `├── widgets/         # Navigation (${this.config.navigation.type})\n`;
+    code += `└── main.dart        # Entry point\n`;
+    code += `\`\`\`\n\n`;
+    code += `---\n\n`;
+    
+    code += `## 🔧 Configuration Files\n\n`;
+    code += `### API Configuration\n\n`;
+    code += `File: \`lib/services/api_service.dart\`\n\n`;
+    code += `\`\`\`dart\n`;
+    code += `static const String baseUrl = 'http://YOUR_IP:8080/api/v1';\n`;
+    code += `static const Duration timeout = Duration(seconds: ${this.config.apiConfig.timeout / 1000});\n`;
+    code += `\`\`\`\n\n`;
+    code += `---\n\n`;
+    
+    code += `## 🎨 Theme Configuration\n\n`;
+    code += `- **Primary Color:** ${this.config.theme.primaryColor}\n`;
+    code += `- **Secondary Color:** ${this.config.theme.secondaryColor}\n`;
+    code += `- **Theme Mode:** ${this.config.theme.themeMode}\n`;
+    code += `- **Dark Mode:** ${this.config.theme.useDarkMode ? 'Enabled' : 'Disabled'}\n\n`;
+    code += `To customize, edit \`lib/main.dart\`\n\n`;
+    code += `---\n\n`;
+    
+    code += `## 📱 Testing on Different Networks (IMPORTANT FOR DEMOS)\n\n`;
+    code += `**Problem:** IP address changes when you change WiFi networks (home → office → presentation venue).\n\n`;
+    code += `**Solution:** Before each demo/presentation:\n\n`;
+    code += `### Method 1: Automated Script (Fastest) ⚡\n\n`;
+    code += `Run the script before EVERY demo:\n\n`;
+    code += `**Windows:**\n`;
+    code += `\`\`\`bash\nupdate_api_url.bat\n\`\`\`\n\n`;
+    code += `**Linux/Mac:**\n`;
+    code += `\`\`\`bash\n./update_api_url.sh\n\`\`\`\n\n`;
+    code += `Then hot restart app:\n`;
+    code += `- Press \`R\` (capital R) in terminal running \`flutter run\`, or\n`;
+    code += `- Stop and run \`flutter run\` again\n\n`;
+    
+    code += `### Method 2: Manual Update\n\n`;
+    code += `1. Get current IP:\n`;
+    code += `   \`\`\`bash\n   ipconfig  # Windows\n   ifconfig  # Linux/Mac\n   \`\`\`\n\n`;
+    code += `2. Edit \`lib/services/api_service.dart\`:\n`;
+    code += `   \`\`\`dart\n   static const String baseUrl = 'http://NEW_IP:8080/api/v1';\n   \`\`\`\n\n`;
+    code += `3. Hot restart app (press \`R\` in terminal)\n\n`;
+    code += `⚠️ **Note:** Hot reload (\`r\`) won't work for URL changes, you MUST hot restart (\`R\`)!\n\n`;
+    code += `---\n\n`;
+    
+    code += `## 🐛 Troubleshooting\n\n`;
+    
+    code += `### Backend Connection Issues\n\n`;
+    code += `**Symptom:** "Connection refused" or "Network unreachable"\n\n`;
+    code += `**Solutions:**\n\n`;
+    code += `1. **Verify backend is running:**\n`;
+    code += `   \`\`\`bash\n   curl http://YOUR_IP:8080/api/health\n   \`\`\`\n`;
+    code += `   Should return: \`{"status":"UP"}\`\n\n`;
+    code += `2. **Check IP is correct:**\n`;
+    code += `   - Get PC IP: \`ipconfig\` (Windows) or \`ifconfig\` (Linux/Mac)\n`;
+    code += `   - Open \`lib/services/api_service.dart\`\n`;
+    code += `   - Verify \`baseUrl\` matches PC's current IP\n\n`;
+    code += `3. **Verify same WiFi network:**\n`;
+    code += `   - Phone and PC MUST be on the same network\n`;
+    code += `   - Check WiFi name on both devices\n\n`;
+    code += `4. **Check Windows Firewall:**\n`;
+    code += `   \`\`\`bash\n   netsh advfirewall firewall add rule name="Spring Boot" dir=in action=allow protocol=TCP localport=8080\n   \`\`\`\n\n`;
+    
+    code += `### Build Issues\n\n`;
+    code += `**Symptom:** "Build failed" or compilation errors\n\n`;
+    code += `**Solution:**\n`;
+    code += `\`\`\`bash\n`;
+    code += `flutter clean\n`;
+    code += `flutter pub get\n`;
+    code += `flutter pub run build_runner build --delete-conflicting-outputs\n`;
+    code += `flutter run\n`;
+    code += `\\\`\\\`\\\`\n\n`;
+    
+    code += `### Hot Reload Not Working\n\n`;
+    code += `API URL changes require **hot restart** (\\\`R\\\`), not hot reload (\\\`r\\\`):\n\n`;
+    code += `- Press \`R\` (capital R) in terminal, or\n`;
+    code += `- Stop app and run \`flutter run\` again\n\n`;
+    
+    code += `### JSON Serialization Errors\n\n`;
+    code += `**Symptom:** "Missing part directive" or "undefined_function"\n\n`;
+    code += `**Solution:**\n`;
+    code += `\`\`\`bash\n`;
+    code += `flutter pub run build_runner build --delete-conflicting-outputs\n`;
+    code += `\`\`\`\n\n`;
+    code += `---\n\n`;
+    
+    code += `## 📦 Generated Features\n\n`;
+    code += `${this.config.features.enablePagination ? '✅ Pagination enabled' : '❌ Pagination disabled'}\n`;
+    code += `${this.config.features.enableSearch ? '✅ Search enabled' : '❌ Search disabled'}\n`;
+    code += `${this.config.features.enableFilters ? '✅ Filters enabled' : '❌ Filters disabled'}\n`;
+    code += `${this.config.features.enableOfflineMode ? '✅ Offline mode enabled' : '❌ Offline mode disabled'}\n\n`;
     code += `- ✅ CRUD operations for all entities\n`;
     code += `- ✅ Form validation\n`;
+    code += `- ✅ Foreign key selectors with modal dialogs\n`;
     code += `- ✅ ${this.config.navigation.type === 'drawer' ? 'Drawer' : 'Bottom'} navigation\n`;
     code += `- ✅ ${this.capitalizeFirst(this.config.stateManagement)} state management\n`;
-    if (this.config.features.enablePagination) {
-      code += `- ✅ Pagination support\n`;
-    }
-    if (this.config.features.enableSearch) {
-      code += `- ✅ Search functionality\n`;
-    }
+    code += `- ✅ JSON serialization with build_runner\n`;
+    code += `- ✅ Error handling and loading states\n\n`;
+    code += `---\n\n`;
+    
+    code += `## 🚀 Next Steps\n\n`;
+    code += `1. Customize theme colors in \`lib/main.dart\`\n`;
+    code += `2. Add custom business logic in providers\n`;
+    code += `3. Enhance UI in screen files\n`;
+    code += `4. Add more validations in forms\n`;
+    code += `5. Implement authentication (if needed)\n`;
+    code += `6. Add unit tests\n`;
+    code += `7. Configure app icon and splash screen\n\n`;
+    code += `---\n\n`;
+    
+    code += `## 📄 License\n\n`;
+    code += `Generated by UML to Flutter Code Generator\n`;
 
     files.set('README.md', code);
+  }
+
+  // ==========================================================================
+  // UPDATE SCRIPTS GENERATION
+  // ==========================================================================
+
+  private generateUpdateScripts(files: Map<string, string>): void {
+    // Generate Windows batch script
+    const windowsScript = `@echo off
+echo ========================================
+echo   Flutter API URL Auto-Update Script
+echo ========================================
+echo.
+echo Detecting your PC IP address...
+echo.
+
+REM Find IPv4 address starting with 192.168
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /R "IPv4.*192.168"') do (
+    set IP=%%a
+    goto :found
+)
+
+REM If not found, try 10.0 range
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /R "IPv4.*10.0"') do (
+    set IP=%%a
+    goto :found
+)
+
+REM If not found, try 172.16-31 range
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /R "IPv4.*172"') do (
+    set IP=%%a
+    goto :found
+)
+
+echo ❌ ERROR: Could not detect IP address
+echo.
+echo Please run 'ipconfig' manually and look for your IPv4 Address
+echo Then update lib\\services\\api_service.dart manually
+echo.
+pause
+exit /b 1
+
+:found
+REM Remove leading/trailing spaces
+set IP=%IP: =%
+
+echo ✅ Detected IP: %IP%
+echo.
+echo Updating API URL in lib/services/api_service.dart...
+echo.
+
+REM Update the baseUrl in api_service.dart
+powershell -Command "(Get-Content lib\\services\\api_service.dart) -replace 'http://[0-9.]+:8080', 'http://%IP%:8080' | Set-Content lib\\services\\api_service.dart"
+
+echo.
+echo ========================================
+echo ✅ SUCCESS!
+echo ========================================
+echo.
+echo API URL updated to: http://%IP%:8080/api/v1
+echo.
+echo Next steps:
+echo   1. Make sure your Spring Boot backend is running
+echo   2. Verify backend is accessible: curl http://%IP%:8080/api/health
+echo   3. If app is already running, press 'R' (hot restart)
+echo   4. If not running yet: flutter run
+echo.
+pause
+`;
+
+    // Generate Linux/Mac bash script
+    const unixScript = `#!/bin/bash
+
+echo "========================================"
+echo "  Flutter API URL Auto-Update Script"
+echo "========================================"
+echo ""
+echo "Detecting your PC IP address..."
+echo ""
+
+# Try to detect IP address (prioritize 192.168.x.x)
+IP=$(ifconfig 2>/dev/null | grep "inet " | grep -v 127.0.0.1 | grep "192.168" | awk '{print $2}' | head -n 1)
+
+# If not found, try ip command (Linux)
+if [ -z "$IP" ]; then
+    IP=$(ip addr show 2>/dev/null | grep "inet " | grep -v 127.0.0.1 | grep "192.168" | awk '{print $2}' | cut -d'/' -f1 | head -n 1)
+fi
+
+# If still not found, try any non-localhost IP
+if [ -z "$IP" ]; then
+    IP=$(ifconfig 2>/dev/null | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -n 1)
+fi
+
+if [ -z "$IP" ]; then
+    IP=$(ip addr show 2>/dev/null | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | cut -d'/' -f1 | head -n 1)
+fi
+
+# Check if IP was found
+if [ -z "$IP" ]; then
+    echo "❌ ERROR: Could not detect IP address"
+    echo ""
+    echo "Please run 'ifconfig' or 'ip addr' manually and look for your IP"
+    echo "Then update lib/services/api_service.dart manually"
+    echo ""
+    exit 1
+fi
+
+echo "✅ Detected IP: $IP"
+echo ""
+echo "Updating API URL in lib/services/api_service.dart..."
+echo ""
+
+# Backup original file
+cp lib/services/api_service.dart lib/services/api_service.dart.bak
+
+# Update the baseUrl in api_service.dart
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS uses BSD sed
+    sed -i '' "s|baseUrl = 'http://[0-9.]*:8080|baseUrl = 'http://$IP:8080|g" lib/services/api_service.dart
+else
+    # Linux uses GNU sed
+    sed -i "s|baseUrl = 'http://[0-9.]*:8080|baseUrl = 'http://$IP:8080|g" lib/services/api_service.dart
+fi
+
+echo ""
+echo "========================================"
+echo "✅ SUCCESS!"
+echo "========================================"
+echo ""
+echo "API URL updated to: http://$IP:8080/api/v1"
+echo ""
+echo "Next steps:"
+echo "  1. Make sure your Spring Boot backend is running"
+echo "  2. Verify backend is accessible: curl http://$IP:8080/api/health"
+echo "  3. If app is already running, press 'R' (hot restart)"
+echo "  4. If not running yet: flutter run"
+echo ""
+`;
+
+    files.set('update_api_url.bat', windowsScript);
+    files.set('update_api_url.sh', unixScript);
   }
 
   // ==========================================================================
@@ -1237,6 +1680,61 @@ export class FlutterGeneratorService {
 
   private capitalizeFirst(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  /**
+   * Check if an entity exists in the diagram
+   * Also checks plural/singular variations
+   */
+  private entityExists(entityName: string): boolean {
+    const sanitizedName = this.sanitizeClassName(entityName);
+    const lowerName = sanitizedName.toLowerCase();
+    
+    return this.nodes.some(node => {
+      const nodeName = this.sanitizeClassName(node.data.label);
+      const lowerNodeName = nodeName.toLowerCase();
+      
+      // Exact match
+      if (lowerNodeName === lowerName) return true;
+      
+      // Check plural: "Order" vs "Orders"
+      if (lowerNodeName === lowerName + 's') return true;
+      if (lowerNodeName + 's' === lowerName) return true;
+      
+      // Check "ies" ending: "Category" vs "Categories"
+      if (lowerNodeName === lowerName.replace(/y$/, 'ies')) return true;
+      if (lowerNodeName.replace(/y$/, 'ies') === lowerName) return true;
+      
+      return false;
+    });
+  }
+  
+  /**
+   * Find the actual entity name in the diagram (handles plural/singular)
+   */
+  private findActualEntityName(entityName: string): string | null {
+    const sanitizedName = this.sanitizeClassName(entityName);
+    const lowerName = sanitizedName.toLowerCase();
+    
+    const foundNode = this.nodes.find(node => {
+      const nodeName = this.sanitizeClassName(node.data.label);
+      const lowerNodeName = nodeName.toLowerCase();
+      
+      // Exact match
+      if (lowerNodeName === lowerName) return true;
+      
+      // Check plural: "Order" vs "Orders"
+      if (lowerNodeName === lowerName + 's') return true;
+      if (lowerNodeName + 's' === lowerName) return true;
+      
+      // Check "ies" ending: "Category" vs "Categories"
+      if (lowerNodeName === lowerName.replace(/y$/, 'ies')) return true;
+      if (lowerNodeName.replace(/y$/, 'ies') === lowerName) return true;
+      
+      return false;
+    });
+    
+    return foundNode ? this.sanitizeClassName(foundNode.data.label) : null;
   }
 }
 
