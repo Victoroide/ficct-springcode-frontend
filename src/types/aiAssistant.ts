@@ -148,6 +148,11 @@ export interface NaturalLanguageCommandResponse {
     remaining: number;
     reset_time: number;
   };
+  metadata?: {
+    model_used: string;
+    response_time: number;
+    cost_estimate: number;
+  };
 }
 
 export interface UMLElementRecommendation {

@@ -97,19 +97,58 @@ const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
 
   // Handle elements generated from natural language commands
   const handleElementsGenerated = useCallback((elements: { nodes: any[]; edges: any[] }) => {
-    const newNodes = [...currentNodes, ...elements.nodes];
-    const newEdges = [...currentEdges, ...elements.edges];
+    console.log('═══════════════════════════════════════════════════');
+    console.log('[PARENT] handleElementsGenerated called');
+    console.log('[PARENT] Before update:', {
+      currentNodes: currentNodes.length,
+      currentEdges: currentEdges.length
+    });
+    console.log('[PARENT] Incoming from AI processor:', {
+      nodes: elements.nodes.length,
+      edges: elements.edges.length
+    });
     
-    setCurrentNodes(newNodes);
-    setCurrentEdges(newEdges);
+    // CRITICAL FIX: REPLACE instead of APPEND
+    // AI processor already merged nodes/edges internally
+    // Result contains complete diagram state after merge
+    // Appending would create duplicates: [edge1, edge2, edge1, edge2]
     
-    onNodesChange?.(newNodes);
-    onEdgesChange?.(newEdges);
+    setCurrentNodes(elements.nodes);
+    setCurrentEdges(elements.edges);
+    
+    onNodesChange?.(elements.nodes);
+    onEdgesChange?.(elements.edges);
+    
+    console.log('[PARENT] After update:', {
+      nodes: elements.nodes.length,
+      edges: elements.edges.length
+    });
+    console.log('[PARENT] State replaced successfully - no appending');
+    
+    // Verify no duplicates
+    const nodeIds = elements.nodes.map(n => n.id);
+    const edgeIds = elements.edges.map(e => e.id);
+    const uniqueNodeIds = new Set(nodeIds);
+    const uniqueEdgeIds = new Set(edgeIds);
+    
+    if (nodeIds.length !== uniqueNodeIds.size) {
+      console.error('[PARENT] WARNING: Duplicate node IDs detected!', {
+        total: nodeIds.length,
+        unique: uniqueNodeIds.size
+      });
+    }
+    
+    if (edgeIds.length !== uniqueEdgeIds.size) {
+      console.error('[PARENT] WARNING: Duplicate edge IDs detected!', {
+        total: edgeIds.length,
+        unique: uniqueEdgeIds.size
+      });
+    }
     
     // Track user action for AI context
     setCurrentAction(`Elementos generados por IA: ${elements.nodes.length} nodos, ${elements.edges.length} relaciones`);
     setTimeout(() => setCurrentAction(null), 5000);
-  }, [currentNodes, currentEdges, onNodesChange, onEdgesChange]);
+  }, [onNodesChange, onEdgesChange]);
 
   // Handle save with AI context tracking
   const handleSave = useCallback(() => {

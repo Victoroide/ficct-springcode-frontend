@@ -85,10 +85,6 @@ class Environment {
     if (api.timeout < 1000) {
       console.warn('API timeout is set to less than 1 second, this may cause issues')
     }
-
-    if (this.isDevelopment()) {
-      console.log('Environment Configuration:', this.config)
-    }
   }
 
   // Public getters

@@ -98,7 +98,6 @@ export const setupGlobalErrorHandlers = () => {
       errorMessage.includes('ws://') ||
       errorMessage.includes('connection') && errorMessage.includes('closed')
     ) {
-      console.info('WebSocket connection issue detected (backend may be offline) - ignoring toast notification');
       event.preventDefault(); // Prevent default unhandled rejection behavior
       return;
     }
@@ -128,7 +127,6 @@ export const setupGlobalErrorHandlers = () => {
       errorMessage.includes('ws://') ||
       (errorMessage.includes('connection') && errorMessage.includes('closed'))
     ) {
-      console.info('WebSocket error detected - ignoring toast notification');
       event.preventDefault();
       return;
     }

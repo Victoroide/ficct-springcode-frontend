@@ -56,13 +56,10 @@ export const useChatWebSocket = ({
     // Chat WebSocket URL - matches backend routing
     const chatWsUrl = `${env.apiConfig.wsUrl}/ws/diagram/${diagramId}/chat/`;
     
-    console.log('Connecting to chat WebSocket:', chatWsUrl);
-    
     try {
       ws.current = new WebSocket(chatWsUrl);
       
       ws.current.onopen = () => {
-        console.log('Chat WebSocket connected successfully');
         setIsConnected(true);
         reconnectAttemptsRef.current = 0;
         
@@ -74,14 +71,12 @@ export const useChatWebSocket = ({
           timestamp: Date.now()
         };
         
-        console.log('Sending chat join message:', joinMessage);
         ws.current?.send(JSON.stringify(joinMessage));
       };
       
       ws.current.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log('Received chat message:', message);
           handleChatMessage(message);
         } catch (error) {
           console.error('Error parsing chat message:', error);
@@ -89,19 +84,12 @@ export const useChatWebSocket = ({
       };
       
       ws.current.onclose = (event) => {
-        console.log('Chat WebSocket disconnected:', {
-          code: event.code,
-          reason: event.reason,
-          wasClean: event.wasClean
-        });
         setIsConnected(false);
         
         // Attempt reconnection if not intentionally closed
         if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
           const delay = Math.pow(2, reconnectAttemptsRef.current) * 1000;
           reconnectAttemptsRef.current++;
-          
-          console.log(`Attempting chat reconnection ${reconnectAttemptsRef.current}/${maxReconnectAttempts} in ${delay}ms`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
@@ -110,7 +98,7 @@ export const useChatWebSocket = ({
       };
       
       ws.current.onerror = (error) => {
-        console.warn('Chat WebSocket error (backend may be offline):', error);
+        console.error('Chat WebSocket error (backend may be offline):', error);
         setIsConnected(false);
       };
       
@@ -185,7 +173,6 @@ export const useChatWebSocket = ({
         timestamp: Date.now()
       };
       
-      console.log('Sending chat message:', message);
       ws.current.send(JSON.stringify(message));
       return true;
     } else {

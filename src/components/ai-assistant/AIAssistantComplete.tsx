@@ -18,6 +18,12 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
+import { mergeNodesByID, mergeEdgesByID } from '@/utils/diagramDataCleaner';
+import { 
+  processAIResponse, 
+  handleProcessingError,
+  type ProcessingStats 
+} from '@/utils/aiResponseProcessor';
 import ElementPreviewCard from './ElementPreviewCard';
 import ImageUploadModal from './ImageUploadModal';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -229,38 +235,81 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
     dispatch(clearRecommendations());
     setLastCommandResponse(null);
     setPreviewElements([]);
+    
     const startTime = Date.now();
     try {
-      const response: any = await aiAssistantService.processCommand(commandToProcess, diagramId, { nodes: diagramNodes, edges: diagramEdges });
-      const processingTime = Date.now() - startTime;
+      // STEP 1: Get AI response
+      const response: any = await aiAssistantService.processCommand(
+        commandToProcess, 
+        diagramId, 
+        { nodes: diagramNodes, edges: diagramEdges }
+      );
+      
       setLastCommandResponse(response);
+
+      // STEP 2: Apply defensive processing pipeline
+      console.log('[AI Assistant] Processing response with defensive pipeline');
+      const { result, stats } = processAIResponse(
+        response,
+        { nodes: diagramNodes, edges: diagramEdges }
+      );
+
+      if (!result) {
+        // Validation failed
+        throw new Error('AI response validation failed. ' + stats.warnings.join(', '));
+      }
+
+      // STEP 3: Extract elements for preview
       const elements = response.elements || response.elements_generated || [];
       
-      // Set preview elements instead of immediately applying
+      // Set preview elements for user review
       if (elements.length > 0) {
         setPreviewElements(elements.map((el: any) => ({
           element: el,
           preview: true,
           accepted: false
         })));
+        
+        // Show detailed feedback to user
+        const feedbackParts: string[] = [];
+        feedbackParts.push(`${elements.length} elemento(s) generado(s)`);
+        
+        if (stats.duplicatesRemoved > 0) {
+          feedbackParts.push(`${stats.duplicatesRemoved} duplicado(s) evitado(s)`);
+        }
+        
+        if (stats.warnings.length > 0) {
+          feedbackParts.push(`${stats.warnings.length} advertencia(s)`);
+        }
+        
         toast({ 
           title: 'Elementos generados', 
-          description: `Se generaron ${elements.length} elemento(s). Revisa y aplica los cambios.`, 
+          description: feedbackParts.join(' • ') + '. Revisa y aplica los cambios.', 
+          variant: 'default' 
+        });
+
+        console.log('[AI Assistant] Processing stats:', stats);
+      } else {
+        toast({ 
+          title: 'Sin elementos', 
+          description: 'La IA no generó elementos. Intenta reformular el comando.', 
           variant: 'default' 
         });
       }
       
-      dispatch(addToCommandHistory({ command: commandToProcess, success: elements.length > 0, elementsGenerated: elements.length, processingTime }));
+      dispatch(addToCommandHistory({ 
+        command: commandToProcess, 
+        success: elements.length > 0, 
+        elementsGenerated: elements.length, 
+        processingTime: Date.now() - startTime 
+      }));
       dispatch(setCurrentCommand(''));
+      
     } catch (error: any) {
-      const errorMsg = error.message || 'Error al procesar el comando';
-      const userFriendlyMsg = errorMsg.includes('404') 
-        ? 'El servicio de IA no está disponible. Verifica que el backend esté corriendo.'
-        : errorMsg.includes('500')
-        ? 'Error del servidor. Por favor intenta de nuevo.'
-        : errorMsg.includes('Failed to fetch')
-        ? 'No se puede conectar con el servidor. Verifica tu conexión.'
-        : errorMsg;
+      // STEP 4: Handle errors with recovery strategies
+      const processingError = handleProcessingError(error);
+      
+      const userFriendlyMsg = processingError.message;
       
       setLastCommandResponse({ 
         success: false, 
@@ -268,6 +317,7 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
         interpretation: userFriendlyMsg,
         elements: []
       });
+      
       dispatch(addToCommandHistory({ 
         command: commandToProcess, 
         success: false, 
@@ -275,11 +325,14 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
         processingTime: Date.now() - startTime, 
         errorMessage: userFriendlyMsg 
       }));
+      
       toast({ 
         title: 'Error al procesar comando', 
-        description: userFriendlyMsg, 
+        description: userFriendlyMsg + (processingError.recoverable ? ' Puedes intentar de nuevo.' : ''), 
         variant: 'destructive' 
       });
+      
+      console.error('[AI Assistant] Processing error:', processingError);
     } finally {
       dispatch(setCommandProcessing(false));
     }
@@ -310,8 +363,100 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
     return { x, y };
   };
 
-  // Apply accepted elements to diagram
+  // Apply accepted elements to diagram with defensive processing
   const applyElementsToCanvas = async () => {
+    if (previewElements.length === 0) return;
+    
+    setIsApplyingElements(true);
+    try {
+      console.log('═══════════════════════════════════════════════════');
+      console.log('[APPLY] Button clicked - Starting application process');
+      console.log('[APPLY] Preview elements count:', previewElements.length);
+      console.log('[APPLY] Preview elements:', previewElements);
+      console.log('[APPLY] First preview element:', previewElements[0]);
+      console.log('[APPLY] First element structure:', JSON.stringify(previewElements[0], null, 2));
+      console.log('[APPLY] Current nodes before apply:', diagramNodes.length);
+      console.log('[APPLY] Current edges before apply:', diagramEdges.length);
+      
+      // Build response object from preview elements
+      const mockResponse = {
+        elements: previewElements.map(p => p.element)
+      };
+      
+      console.log('[APPLY] Mock response for defensive processor:', mockResponse);
+      console.log('[APPLY] Mock response elements:', mockResponse.elements);
+      console.log('[APPLY] First mock element:', mockResponse.elements[0]);
+      
+      // Apply defensive processing pipeline
+      const { result, stats } = processAIResponse(
+        mockResponse,
+        { nodes: diagramNodes, edges: diagramEdges }
+      );
+      
+      console.log('[APPLY] Defensive processor result:', result);
+      console.log('[APPLY] Processing stats:', stats);
+      
+      if (!result) {
+        console.error('[APPLY] CRITICAL: Validation failed!');
+        console.error('[APPLY] Stats warnings:', stats.warnings);
+        throw new Error('Element validation failed: ' + stats.warnings.join(', '));
+      }
+      
+      console.log('[APPLY] Result nodes:', result.nodes);
+      console.log('[APPLY] Result nodes count:', result.nodes.length);
+      console.log('[APPLY] First result node:', result.nodes[0]);
+      console.log('[APPLY] First result node data:', result.nodes[0]?.data);
+      console.log('[APPLY] First result node label:', result.nodes[0]?.data?.label);
+      
+      // Apply to canvas
+      if (onElementsGenerated) {
+        console.log('[APPLY] Calling onElementsGenerated with:', {
+          nodesCount: result.nodes.length,
+          edgesCount: result.edges.length
+        });
+        
+        onElementsGenerated({ 
+          nodes: result.nodes, 
+          edges: result.edges 
+        });
+        
+        console.log('[APPLY] onElementsGenerated called successfully');
+      } else {
+        console.error('[APPLY] CRITICAL: onElementsGenerated callback is missing!');
+      }
+      
+      // Show detailed feedback
+      const feedbackParts: string[] = [];
+      if (stats.nodesAdded > 0) feedbackParts.push(`${stats.nodesAdded} clase(s)`);
+      if (stats.nodesUpdated > 0) feedbackParts.push(`${stats.nodesUpdated} actualizada(s)`);
+      if (stats.edgesAdded > 0) feedbackParts.push(`${stats.edgesAdded} relación(es)`);
+      if (stats.duplicatesRemoved > 0) feedbackParts.push(`${stats.duplicatesRemoved} duplicado(s) evitado(s)`);
+      
+      toast({ 
+        title: 'Elementos aplicados', 
+        description: feedbackParts.join(' • '), 
+        variant: 'default' 
+      });
+      
+      console.log('[AI Assistant] Application stats:', stats);
+      
+      // Clear preview after successful application
+      setPreviewElements([]);
+      
+    } catch (error: any) {
+      console.error('[AI Assistant] Error applying elements:', error);
+      toast({ 
+        title: 'Error al aplicar elementos', 
+        description: error.message || 'No se pudieron aplicar los elementos al diagrama.', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsApplyingElements(false);
+    }
+  };
+
+  // LEGACY: Keep original logic as fallback (not used with defensive pipeline)
+  const applyElementsToCanvasLegacy = async () => {
     if (previewElements.length === 0) return;
     
     setIsApplyingElements(true);
@@ -421,7 +566,11 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
       
       if (newNodes.length > 0 || newEdges.length > 0) {
         if (onElementsGenerated) {
-          onElementsGenerated({ nodes: newNodes, edges: newEdges });
+          // Merge instead of append to prevent duplicates
+          const mergedNodes = mergeNodesByID(diagramNodes, newNodes);
+          const mergedEdges = mergeEdgesByID(diagramEdges, newEdges);
+          
+          onElementsGenerated({ nodes: mergedNodes, edges: mergedEdges });
         }
         
         toast({ 
@@ -455,7 +604,7 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
     });
   };
 
-  // Handle image upload and processing
+  // Handle image upload and processing with defensive pipeline
   const handleImageProcessed = async (base64Image: string) => {
     setIsProcessingImage(true);
     const startTime = Date.now();
@@ -467,110 +616,51 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
       const processingTime = Date.now() - startTime;
       
       if (response.success && response.data) {
-        const { nodes, edges, metadata } = response.data;
+        const { nodes, edges } = response.data;
         
-        // Apply elements directly to canvas (same format as createClassNode)
-        const newNodes: UMLNode[] = [];
-        const newEdges: UMLEdge[] = [];
+        console.log('[AI Assistant] Processing image recognition results with defensive pipeline');
         
-        // Helper to transform backend format to frontend format
-        const transformMethod = (method: any) => {
-          // Backend sends parameters as string, frontend expects array
-          let parameters = [];
-          if (method.parameters && typeof method.parameters === 'string' && method.parameters.trim()) {
-            // Try to parse simple parameter format "param1: Type1, param2: Type2"
-            const paramParts = method.parameters.split(',').map((p: string) => p.trim());
-            parameters = paramParts.map((p: string) => {
-              const [name, type] = p.split(':').map((s: string) => s.trim());
-              return { 
-                id: `param-${Date.now()}-${Math.random()}`,
-                name: name || 'param', 
-                type: type || 'any' 
-              };
-            });
-          }
-          
-          return {
-            id: `method-${Date.now()}-${Math.random()}`,
-            name: method.name || 'method',
-            parameters: parameters,
-            returnType: method.returnType || 'void',
-            visibility: method.visibility || 'public',
-            isStatic: method.isStatic || false,
-            isAbstract: method.isAbstract || false
-          };
+        // Build response object for defensive processor
+        const mockResponse = {
+          elements: [
+            ...nodes.map((n: any) => ({ type: 'node', data: n })),
+            ...edges.map((e: any) => ({ type: 'edge', data: e }))
+          ]
         };
         
-        const transformAttribute = (attr: any) => {
-          return {
-            id: `attr-${Date.now()}-${Math.random()}`,
-            name: attr.name || 'attribute',
-            type: attr.type || 'String',
-            visibility: attr.visibility || 'private',
-            isStatic: attr.isStatic || false
-          };
-        };
+        // Apply defensive processing pipeline
+        const { result, stats } = processAIResponse(
+          mockResponse,
+          { nodes: diagramNodes, edges: diagramEdges }
+        );
         
-        // Process nodes from backend - use exact same structure as UMLFlowEditorBase.createClassNode
-        nodes.forEach((nodeData: any) => {
-          const suggestedPosition = nodeData.position || { x: Math.random() * 400 + 100, y: Math.random() * 300 + 100 };
-          const adjustedPosition = calculateNonOverlappingPosition(suggestedPosition, [...diagramNodes, ...newNodes]);
-          
-          // Transform attributes and methods to frontend format
-          const attributes = (nodeData.data?.attributes || []).map(transformAttribute);
-          const methods = (nodeData.data?.methods || []).map(transformMethod);
-          
-          newNodes.push({
-            id: nodeData.id || `class-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            type: 'class', // CRITICAL: Must be 'class', not 'classNode'
-            position: adjustedPosition,
-            data: {
-              label: nodeData.data?.label || 'Unnamed',
-              nodeType: 'class' as any, // CRITICAL: Must be 'class'
-              attributes: attributes,
-              methods: methods,
-              isAbstract: nodeData.data?.isAbstract || false
-            }
-          });
-        });
-        
-        // Process edges from backend - use exact same structure as normal edges
-        edges.forEach((edgeData: any) => {
-          const allNodes = [...diagramNodes, ...newNodes];
-          
-          // Check if source and target exist by ID
-          const sourceExists = allNodes.some(n => n.id === edgeData.source);
-          const targetExists = allNodes.some(n => n.id === edgeData.target);
-          
-          if (sourceExists && targetExists) {
-            newEdges.push({
-              id: edgeData.id || `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              source: edgeData.source,
-              target: edgeData.target,
-              type: 'umlRelationship', // CRITICAL: Must be 'umlRelationship', not 'custom'
-              data: {
-                relationshipType: (edgeData.data?.relationshipType || 'ASSOCIATION') as any,
-                sourceMultiplicity: edgeData.data?.sourceMultiplicity || '1',
-                targetMultiplicity: edgeData.data?.targetMultiplicity || '1',
-                label: edgeData.data?.label || ''
-              }
-            });
-          } else {
-            console.warn('Edge source or target node not found:', edgeData.source, edgeData.target);
-          }
-        });
+        if (!result) {
+          throw new Error('Image recognition validation failed');
+        }
         
         // Apply to canvas
-        if (newNodes.length > 0 || newEdges.length > 0) {
+        if (result.nodes.length > 0 || result.edges.length > 0) {
           if (onElementsGenerated) {
-            onElementsGenerated({ nodes: newNodes, edges: newEdges });
+            onElementsGenerated({ 
+              nodes: result.nodes, 
+              edges: result.edges 
+            });
           }
+          
+          // Show detailed feedback
+          const feedbackParts: string[] = [];
+          if (stats.nodesAdded > 0) feedbackParts.push(`${stats.nodesAdded} clase(s)`);
+          if (stats.edgesAdded > 0) feedbackParts.push(`${stats.edgesAdded} relación(es)`);
+          if (stats.duplicatesRemoved > 0) feedbackParts.push(`${stats.duplicatesRemoved} duplicado(s) evitado(s)`);
+          feedbackParts.push(`Tiempo: ${(processingTime / 1000).toFixed(1)}s`);
           
           toast({ 
             title: 'Diagrama extraído exitosamente', 
-            description: `Se agregaron ${newNodes.length} clase(s) y ${newEdges.length} relación(es). Tiempo: ${(processingTime / 1000).toFixed(1)}s`, 
+            description: feedbackParts.join(' • '), 
             variant: 'default' 
           });
+          
+          console.log('[AI Assistant] Image processing stats:', stats);
         } else {
           toast({ 
             title: 'No se detectaron elementos', 

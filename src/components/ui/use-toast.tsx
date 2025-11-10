@@ -8,8 +8,7 @@ export const useToast = () => {
   return {
     toast: (props: any) => {
       // This is a simplified implementation
-      // In a real app, you'd want to use a proper toast system
-      console.log('Toast:', props)
+      // The actual toast is imported from './toast' above
     }
   }
 }

@@ -360,15 +360,6 @@ export class UMLCollaborationService {
     
     const isConnected = hasService && serviceConnected && hasDiagramId;
     
-    if (import.meta.env.DEV) {
-      console.log(`🔍 Estado de conexión WebSocket: ${isConnected ? '🟢 Conectado' : '🔴 Desconectado'}`, {
-        hasService,
-        serviceConnected,
-        hasDiagramId,
-        diagramId: this.currentDiagramId
-      });
-    }
-    
     return isConnected;
   }
   

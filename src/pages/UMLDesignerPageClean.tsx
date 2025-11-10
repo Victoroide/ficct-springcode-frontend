@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Save, ChevronLeft, Edit, Check, Users, Wifi, WifiOff } from 'lucide-react';
 import { toast } from '@/components/ui/toast-service';
+import { cleanAndValidateDiagramData } from '@/utils/diagramDataCleaner';
 
 import UMLFlowEditorWithAI from '@/components/uml-flow/UMLFlowEditorWithAI';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -184,6 +185,62 @@ export function UMLDesignerPageClean({
     sendTypingIndicator(isTyping);
   }, [sendTypingIndicator]);
 
+  // ================================================================================
+  // AUTO-CLEANUP: Remove "Unnamed Class" ghost nodes
+  // ================================================================================
+  useEffect(() => {
+    const unnamedNodes = nodes.filter(node => 
+      node.data?.label === 'Unnamed Class' || 
+      !node.data?.label || 
+      node.data?.label.trim() === ''
+    );
+    
+    if (unnamedNodes.length > 0) {
+      console.warn('═══════════════════════════════════════════════════');
+      console.warn('[AUTO-CLEANUP] Detected', unnamedNodes.length, 'invalid nodes');
+      console.warn('[AUTO-CLEANUP] Invalid node IDs:', unnamedNodes.map(n => n.id));
+      console.warn('[AUTO-CLEANUP] Invalid node labels:', unnamedNodes.map(n => n.data?.label || 'NO LABEL'));
+      
+      // Remove invalid nodes
+      setNodes(prevNodes => {
+        const cleaned = prevNodes.filter(node => {
+          const label = node.data?.label;
+          return label && label.trim() !== '' && label !== 'Unnamed Class';
+        });
+        
+        console.warn('[AUTO-CLEANUP] Removed', prevNodes.length - cleaned.length, 'invalid nodes');
+        console.warn('[AUTO-CLEANUP] Remaining valid nodes:', cleaned.length);
+        
+        return cleaned;
+      });
+      
+      // Also clean up orphaned edges
+      setEdges(prevEdges => {
+        const validNodeIds = new Set(
+          nodes
+            .filter(n => n.data?.label && n.data.label !== 'Unnamed Class')
+            .map(n => n.id)
+        );
+        
+        const cleaned = prevEdges.filter(edge => 
+          validNodeIds.has(edge.source) && validNodeIds.has(edge.target)
+        );
+        
+        if (cleaned.length < prevEdges.length) {
+          console.warn('[AUTO-CLEANUP] Removed', prevEdges.length - cleaned.length, 'orphaned edges');
+        }
+        
+        return cleaned;
+      });
+      
+      toast({
+        title: 'Nodos inválidos eliminados',
+        description: `Se eliminaron ${unnamedNodes.length} clase(s) sin nombre válido`,
+        variant: 'warning'
+      });
+    }
+  }, [nodes, setNodes, setEdges]);
+
   // Load diagram on mount
   useEffect(() => {
     if (!diagramId || diagramId === 'new') {
@@ -303,16 +360,19 @@ export function UMLDesignerPageClean({
     }
   }, [isDiagramConnected, sendMessage, nodes, onDiagramChange, diagramId, diagramName]);
 
-  // Save diagram to API
+  // Save diagram to API with data cleaning
   const handleSave = useCallback(async () => {
     if (!diagramId || nodes.length === 0) return;
     
     try {
+      // Clean and validate diagram data before saving
+      const cleaned = cleanAndValidateDiagramData(nodes, edges);
+      
       const diagramData = {
         title: diagramName,
         content: {
-          nodes: nodes,
-          edges: edges
+          nodes: cleaned.nodes,
+          edges: cleaned.edges
         },
         diagram_type: 'CLASS' as const
       };
@@ -359,7 +419,6 @@ export function UMLDesignerPageClean({
       // Update database
       if (diagramId && diagramId !== 'new') {
         diagramService.updateDiagram(diagramId, { title: finalTitle })
-          .then(() => console.log('Title updated in database:', finalTitle))
           .catch(error => console.error('Error saving title:', error));
       }
       

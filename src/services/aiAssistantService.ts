@@ -215,7 +215,7 @@ class AIAssistantService {
     diagramId?: string,
     currentDiagramData?: { nodes: any[]; edges: any[] }
   ): Promise<NaturalLanguageCommandResponse> {
-    this.checkAuthentication(); // BLOCK if not authenticated
+    this.checkAuthentication();
     this.checkRateLimit();
 
     const cacheKey = `command_${command}_${diagramId || 'new'}`;
@@ -224,29 +224,31 @@ class AIAssistantService {
       return cached;
     }
 
+    // Build request with context-aware logic - only send context when valid
+    const hasValidContext = diagramId && 
+                           currentDiagramData && 
+                           (currentDiagramData.nodes.length > 0 || currentDiagramData.edges.length > 0);
+
     const request: NaturalLanguageCommandRequest = {
       command: command.trim(),
-      diagram_id: diagramId || null,
-      current_diagram_data: currentDiagramData || null
+      diagram_id: hasValidContext ? diagramId : null,
+      current_diagram_data: hasValidContext ? currentDiagramData : null
     };
 
     try {
+      const endpoint = '/process-command/';
       
-      // Use correct endpoint based on whether diagram_id is provided
-      const endpoint = diagramId 
-        ? `/process-command/${diagramId}/`
-        : '/process-command/';
-      
+      // Nova Pro takes 8-10 seconds to process, use extended timeout
       const response = await this.makeRequest<NaturalLanguageCommandResponse>(
         endpoint,
         {
           method: 'POST',
-          body: JSON.stringify(request)
+          body: JSON.stringify(request),
+          timeout: 30000  // 30 seconds to accommodate Nova Pro processing time
         }
       );
 
-      // Cache successful responses for shorter time (commands change context frequently)
-      this.setCache(cacheKey, response, 60000); // 1 minute cache
+      this.setCache(cacheKey, response, 60000);
       return response;
     } catch (error) {
       throw this.handleError(error);
@@ -488,7 +490,7 @@ class AIAssistantService {
     const url = `${this.baseUrl}${endpoint}`;
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), options.timeout || env.apiConfig.timeout);
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
     
     try {
       const csrfToken = await this.getCSRFToken();
@@ -627,7 +629,7 @@ class AIAssistantService {
     if (error.name === 'AbortError') {
       return {
         type: 'timeout_error',
-        message: 'La solicitud tardó demasiado tiempo. Verifique su conexión e inténtelo de nuevo.',
+        message: 'La solicitud tardó más de 30 segundos. El procesamiento de comandos complejos puede tardar hasta 15 segundos. Por favor, inténtelo de nuevo.',
         retryable: true
       };
     }

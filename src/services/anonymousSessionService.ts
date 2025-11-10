@@ -71,13 +71,6 @@ class AnonymousSessionService {
       diagramIds: []
     };
 
-    // Log solo en modo desarrollo
-    if (import.meta.env.DEV) {
-      console.log('🆕 Nueva sesión creada:', {
-        sessionId: this.currentSession.sessionId,
-        nickname: this.currentSession.nickname
-      });
-    }
 
     this.saveSession();
     return this.currentSession;
