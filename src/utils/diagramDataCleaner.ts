@@ -20,8 +20,6 @@ export interface ValidationResult {
  * Clean diagram data by removing duplicates and fixing inconsistencies
  */
 export function cleanDiagramData(nodes: Node[], edges: Edge[]): CleanedDiagramData {
-  console.log('[DiagramCleaner] Starting cleanup, input nodes:', nodes.length);
-  
   // STEP 1: Remove duplicate nodes (keep last version by ID)
   const nodeMap = new Map<string, Node>();
   
@@ -57,9 +55,6 @@ export function cleanDiagramData(nodes: Node[], edges: Edge[]): CleanedDiagramDa
     
     return true;
   });
-  
-  console.log('[DiagramCleaner] Filtered out', uniqueNodes.length - validNodes.length, 'invalid nodes');
-  console.log('[DiagramCleaner] Valid nodes remaining:', validNodes.length);
   
   // STEP 2: Get valid node IDs (from validNodes, not uniqueNodes!)
   const validNodeIds = new Set(validNodes.map(n => n.id));

@@ -76,16 +76,12 @@ export function validateAIResponse(response: any): AIResponseValidation {
   for (let i = 0; i < elements.length; i++) {
     const element = elements[i];
     
-    console.log(`[AI Processor] Validating element ${i}:`, element);
-    
     if (!element) {
       warnings.push(`Element at index ${i} is null or undefined`);
       continue;
     }
 
     const elementType = element.element_type || element.type;
-    console.log(`[AI Processor] Element ${i} type:`, elementType);
-
     // Validate Node
     if (elementType === 'class' || elementType === 'node') {
       // Handle multiple possible data structures
@@ -149,9 +145,6 @@ export function validateAIResponse(response: any): AIResponseValidation {
           isAbstract: isAbstract
         }
       };
-
-      console.log(`[AI Processor] ✓ Built valid node "${nodeLabel}" with ${attributes.length} attributes`);
-      console.log('[AI Processor] Valid node:', validNode);
 
       validElements.push({ type: 'node', data: validNode });
     }
@@ -524,12 +517,6 @@ export function processAIResponse(
     processingTime: 0
   };
 
-  console.log('═══════════════════════════════════════════════════');
-  console.log('[AI Processor] Starting defensive processing pipeline');
-  console.log('[AI Processor] Input response:', response);
-  console.log('[AI Processor] Current diagram nodes:', currentDiagram.nodes.length);
-  console.log('[AI Processor] Current diagram edges:', currentDiagram.edges.length);
-
   // STEP 1: Validate response
   const validation = validateAIResponse(response);
   
@@ -577,14 +564,6 @@ export function processAIResponse(
   stats.edgesAdded = merged.edges.length - currentDiagram.edges.length;
   stats.nodesUpdated = countUpdates(currentDiagram.nodes, merged.nodes);
   stats.processingTime = Date.now() - startTime;
-
-  console.log('[AI Processor] Processing complete:', {
-    nodesAdded: stats.nodesAdded,
-    nodesUpdated: stats.nodesUpdated,
-    edgesAdded: stats.edgesAdded,
-    duplicatesRemoved: stats.duplicatesRemoved,
-    processingTime: `${stats.processingTime}ms`
-  });
 
   return { result: merged, stats };
 }

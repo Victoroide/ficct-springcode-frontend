@@ -97,17 +97,6 @@ const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
 
   // Handle elements generated from natural language commands
   const handleElementsGenerated = useCallback((elements: { nodes: any[]; edges: any[] }) => {
-    console.log('═══════════════════════════════════════════════════');
-    console.log('[PARENT] handleElementsGenerated called');
-    console.log('[PARENT] Before update:', {
-      currentNodes: currentNodes.length,
-      currentEdges: currentEdges.length
-    });
-    console.log('[PARENT] Incoming from AI processor:', {
-      nodes: elements.nodes.length,
-      edges: elements.edges.length
-    });
-    
     // CRITICAL FIX: REPLACE instead of APPEND
     // AI processor already merged nodes/edges internally
     // Result contains complete diagram state after merge
@@ -118,12 +107,6 @@ const UMLFlowEditorWithAI: React.FC<UMLFlowEditorWithAIProps> = ({
     
     onNodesChange?.(elements.nodes);
     onEdgesChange?.(elements.edges);
-    
-    console.log('[PARENT] After update:', {
-      nodes: elements.nodes.length,
-      edges: elements.edges.length
-    });
-    console.log('[PARENT] State replaced successfully - no appending');
     
     // Verify no duplicates
     const nodeIds = elements.nodes.map(n => n.id);

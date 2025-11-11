@@ -248,7 +248,6 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
       setLastCommandResponse(response);
 
       // STEP 2: Apply defensive processing pipeline
-      console.log('[AI Assistant] Processing response with defensive pipeline');
       const { result, stats } = processAIResponse(
         response,
         { nodes: diagramNodes, edges: diagramEdges }
@@ -288,8 +287,7 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
           variant: 'default' 
         });
 
-        console.log('[AI Assistant] Processing stats:', stats);
-      } else {
+        } else {
         toast({ 
           title: 'Sin elementos', 
           description: 'La IA no generó elementos. Intenta reformular el comando.', 
@@ -369,23 +367,10 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
     
     setIsApplyingElements(true);
     try {
-      console.log('═══════════════════════════════════════════════════');
-      console.log('[APPLY] Button clicked - Starting application process');
-      console.log('[APPLY] Preview elements count:', previewElements.length);
-      console.log('[APPLY] Preview elements:', previewElements);
-      console.log('[APPLY] First preview element:', previewElements[0]);
-      console.log('[APPLY] First element structure:', JSON.stringify(previewElements[0], null, 2));
-      console.log('[APPLY] Current nodes before apply:', diagramNodes.length);
-      console.log('[APPLY] Current edges before apply:', diagramEdges.length);
-      
       // Build response object from preview elements
       const mockResponse = {
         elements: previewElements.map(p => p.element)
       };
-      
-      console.log('[APPLY] Mock response for defensive processor:', mockResponse);
-      console.log('[APPLY] Mock response elements:', mockResponse.elements);
-      console.log('[APPLY] First mock element:', mockResponse.elements[0]);
       
       // Apply defensive processing pipeline
       const { result, stats } = processAIResponse(
@@ -393,35 +378,20 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
         { nodes: diagramNodes, edges: diagramEdges }
       );
       
-      console.log('[APPLY] Defensive processor result:', result);
-      console.log('[APPLY] Processing stats:', stats);
-      
       if (!result) {
         console.error('[APPLY] CRITICAL: Validation failed!');
         console.error('[APPLY] Stats warnings:', stats.warnings);
         throw new Error('Element validation failed: ' + stats.warnings.join(', '));
       }
       
-      console.log('[APPLY] Result nodes:', result.nodes);
-      console.log('[APPLY] Result nodes count:', result.nodes.length);
-      console.log('[APPLY] First result node:', result.nodes[0]);
-      console.log('[APPLY] First result node data:', result.nodes[0]?.data);
-      console.log('[APPLY] First result node label:', result.nodes[0]?.data?.label);
-      
       // Apply to canvas
       if (onElementsGenerated) {
-        console.log('[APPLY] Calling onElementsGenerated with:', {
-          nodesCount: result.nodes.length,
-          edgesCount: result.edges.length
-        });
-        
         onElementsGenerated({ 
           nodes: result.nodes, 
           edges: result.edges 
         });
         
-        console.log('[APPLY] onElementsGenerated called successfully');
-      } else {
+        } else {
         console.error('[APPLY] CRITICAL: onElementsGenerated callback is missing!');
       }
       
@@ -437,8 +407,6 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
         description: feedbackParts.join(' • '), 
         variant: 'default' 
       });
-      
-      console.log('[AI Assistant] Application stats:', stats);
       
       // Clear preview after successful application
       setPreviewElements([]);
@@ -618,8 +586,6 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
       if (response.success && response.data) {
         const { nodes, edges } = response.data;
         
-        console.log('[AI Assistant] Processing image recognition results with defensive pipeline');
-        
         // Build response object for defensive processor
         const mockResponse = {
           elements: [
@@ -660,8 +626,7 @@ const AIAssistantComplete: React.FC<AIAssistantCompleteProps> = ({
             variant: 'default' 
           });
           
-          console.log('[AI Assistant] Image processing stats:', stats);
-        } else {
+          } else {
           toast({ 
             title: 'No se detectaron elementos', 
             description: 'No se encontraron elementos UML en la imagen. Intenta con una imagen más clara.', 
