@@ -8,6 +8,7 @@ import { Handle, Position } from 'reactflow';
 import type { NodeProps } from 'reactflow';
 import type { UMLVisibility } from '../types';
 import type { UMLNodeData } from '../types';
+import { EditableMethod } from './InlineEditableComponents';
 
 const getVisibilitySymbol = (visibility: UMLVisibility): string => {
   switch (visibility) {
@@ -27,9 +28,10 @@ const getVisibilitySymbol = (visibility: UMLVisibility): string => {
 interface UMLInterfaceNodeProps extends NodeProps<UMLNodeData> {
   onEdit?: (nodeData: UMLNodeData) => void;
   onUpdateLabel?: (nodeId: string, newLabel: string) => void;
+  onUpdateMethod?: (nodeId: string, methodId: string, newName: string) => void;
 }
 
-const UMLInterfaceNode: React.FC<UMLInterfaceNodeProps> = ({ id, data, isConnectable, selected, onEdit, onUpdateLabel }) => {
+const UMLInterfaceNode: React.FC<UMLInterfaceNodeProps> = ({ id, data, isConnectable, selected, onEdit, onUpdateLabel, onUpdateMethod }) => {
   const [isEditingName, setIsEditingName] = React.useState(false);
   const [editedName, setEditedName] = React.useState(data.label || '');
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -139,26 +141,35 @@ const UMLInterfaceNode: React.FC<UMLInterfaceNodeProps> = ({ id, data, isConnect
         )}
       </div>
 
-      {/* Methods section */}
+      {/* Methods section with inline editing */}
       <div className="uml-node-section">
         {methods.length > 0 ? (
-          methods.map((method) => (
-            <div key={method.id} className="uml-method">
-              <span className="visibility-indicator">
-                {getVisibilitySymbol(method.visibility)}
-              </span>{' '}
-              <span className="method-name">{method.name}</span>
-              <span className="method-params">
-                (
-                {method.parameters
-                  .map((param) => `${param.name}: ${param.type}`)
-                  .join(', ')}
-                )
-              </span>
-              <span className="method-separator">:</span>
-              <span className="method-type">{method.returnType}</span>
-            </div>
-          ))
+          methods.map((method) => {
+            const updateHandler = (data as any).onUpdateMethod || onUpdateMethod;
+            return updateHandler ? (
+              <EditableMethod
+                key={method.id}
+                method={method}
+                onUpdate={(methodId, newName) => updateHandler(id, methodId, newName)}
+              />
+            ) : (
+              <div key={method.id} className="uml-method">
+                <span className="visibility-indicator">
+                  {getVisibilitySymbol(method.visibility)}
+                </span>{' '}
+                <span className="method-name">{method.name}</span>
+                <span className="method-params">
+                  (
+                  {method.parameters
+                    .map((param) => `${param.name}: ${param.type}`)
+                    .join(', ')}
+                  )
+                </span>
+                <span className="method-separator">:</span>
+                <span className="method-type">{method.returnType}</span>
+              </div>
+            );
+          })
         ) : (
           <div className="empty-section-message">No methods</div>
         )}

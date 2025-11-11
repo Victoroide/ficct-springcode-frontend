@@ -7,13 +7,15 @@ import React, { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import type { NodeProps } from 'reactflow';
 import type { UMLNodeData, UMLEnumValue } from '../types';
+import { EditableEnumValue } from './InlineEditableComponents';
 
 interface UMLEnumNodeProps extends NodeProps<UMLNodeData> {
   onEdit?: (nodeData: UMLNodeData) => void;
   onUpdateLabel?: (nodeId: string, newLabel: string) => void;
+  onUpdateEnumValue?: (nodeId: string, enumValueId: string, newName: string) => void;
 }
 
-const UMLEnumNode: React.FC<UMLEnumNodeProps> = ({ id, data, isConnectable, selected, onEdit, onUpdateLabel }) => {
+const UMLEnumNode: React.FC<UMLEnumNodeProps> = ({ id, data, isConnectable, selected, onEdit, onUpdateLabel, onUpdateEnumValue }) => {
   const [isEditingName, setIsEditingName] = React.useState(false);
   const [editedName, setEditedName] = React.useState(data.label || '');
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -123,20 +125,29 @@ const UMLEnumNode: React.FC<UMLEnumNodeProps> = ({ id, data, isConnectable, sele
         )}
       </div>
 
-      {/* Enum values section */}
+      {/* Enum values section with inline editing */}
       <div className="uml-node-section enum-section">
         {enumValues.length > 0 ? (
-          enumValues.map((enumValue) => (
-            <div key={enumValue.id} className="uml-enum-constant">
-              <span className="enum-name">{enumValue.name}</span>
-              {enumValue.value && (
-                <>
-                  <span className="enum-separator"> = </span>
-                  <span className="enum-value">{enumValue.value}</span>
-                </>
-              )}
-            </div>
-          ))
+          enumValues.map((enumValue) => {
+            const updateHandler = (data as any).onUpdateEnumValue || onUpdateEnumValue;
+            return updateHandler ? (
+              <EditableEnumValue
+                key={enumValue.id}
+                enumValue={enumValue}
+                onUpdate={(enumValueId, newName) => updateHandler(id, enumValueId, newName)}
+              />
+            ) : (
+              <div key={enumValue.id} className="uml-enum-constant">
+                <span className="enum-name">{enumValue.name}</span>
+                {enumValue.value && (
+                  <>
+                    <span className="enum-separator"> = </span>
+                    <span className="enum-value">{enumValue.value}</span>
+                  </>
+                )}
+              </div>
+            );
+          })
         ) : (
           <div className="empty-section-message">No values</div>
         )}

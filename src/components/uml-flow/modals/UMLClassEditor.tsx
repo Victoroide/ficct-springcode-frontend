@@ -7,6 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Save } from 'lucide-react';
 import type { UMLNodeData, UMLAttribute, UMLMethod, UMLParameter, UMLVisibility, UMLNodeType } from '../types';
 import { generateId } from '../types';
+import { EditableAttributeRow } from './EditableAttributeRow';
+import { EditableMethodRow } from './EditableMethodRow';
 
 interface UMLClassEditorProps {
   isOpen: boolean;
@@ -96,6 +98,15 @@ const UMLClassEditor: React.FC<UMLClassEditorProps> = ({ isOpen, nodeData, onClo
     }));
   };
 
+  const updateAttribute = (updated: UMLAttribute) => {
+    setEditingData(prev => ({
+      ...prev,
+      attributes: (prev.attributes || []).map(attr => 
+        attr.id === updated.id ? updated : attr
+      )
+    }));
+  };
+
   const addMethod = () => {
     if (!newMethod.name.trim()) return;
     
@@ -123,6 +134,15 @@ const UMLClassEditor: React.FC<UMLClassEditorProps> = ({ isOpen, nodeData, onClo
     setEditingData(prev => ({
       ...prev,
       methods: (prev.methods || []).filter(method => method.id !== id)
+    }));
+  };
+
+  const updateMethod = (updated: UMLMethod) => {
+    setEditingData(prev => ({
+      ...prev,
+      methods: (prev.methods || []).map(method => 
+        method.id === updated.id ? updated : method
+      )
     }));
   };
 
@@ -332,28 +352,18 @@ const UMLClassEditor: React.FC<UMLClassEditorProps> = ({ isOpen, nodeData, onClo
                 </div>
               </div>
 
-              {/* Existing Attributes */}
+              {/* Existing Attributes - CRITICAL FIX: Now Editable */}
               <div className="bg-white rounded-xl p-6 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Attributes ({(editingData.attributes || []).length})</h3>
                 <div className="space-y-2">
                   {(editingData.attributes || []).map((attr) => (
-                    <div key={attr.id} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200 hover:border-blue-300 transition-all group">
-                      <div className="flex-1">
-                        <span className="font-mono text-sm text-gray-800">
-                          {visibilityOptions.find(v => v.value === attr.visibility)?.symbol} {attr.name}: {attr.type}
-                          {attr.defaultValue && ` = ${attr.defaultValue}`}
-                          {attr.isStatic && ' (static)'}
-                          {attr.isFinal && ' (final)'}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => removeAttribute(attr.id)}
-                        className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
-                        aria-label="Remove attribute"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <EditableAttributeRow
+                      key={attr.id}
+                      attribute={attr}
+                      onUpdate={updateAttribute}
+                      onDelete={removeAttribute}
+                      visibilityOptions={visibilityOptions}
+                    />
                   ))}
                   {(editingData.attributes || []).length === 0 && (
                     <div className="text-gray-400 text-center py-12 text-sm">
@@ -429,28 +439,18 @@ const UMLClassEditor: React.FC<UMLClassEditorProps> = ({ isOpen, nodeData, onClo
                 </div>
               </div>
 
-              {/* Existing Methods */}
+              {/* Existing Methods - CRITICAL FIX: Now Editable */}
               <div className="bg-white rounded-xl p-6 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Methods ({(editingData.methods || []).length})</h3>
                 <div className="space-y-2">
                   {(editingData.methods || []).map((method) => (
-                    <div key={method.id} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200 hover:border-blue-300 transition-all group">
-                      <div className="flex-1">
-                        <span className="font-mono text-sm text-gray-800">
-                          {visibilityOptions.find(v => v.value === method.visibility)?.symbol} {method.name}
-                          ({method.parameters.map(p => `${p.name}: ${p.type}`).join(', ')}): {method.returnType}
-                          {method.isStatic && ' (static)'}
-                          {method.isAbstract && ' (abstract)'}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => removeMethod(method.id)}
-                        className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
-                        aria-label="Remove method"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <EditableMethodRow
+                      key={method.id}
+                      method={method}
+                      onUpdate={updateMethod}
+                      onDelete={removeMethod}
+                      visibilityOptions={visibilityOptions}
+                    />
                   ))}
                   {(editingData.methods || []).length === 0 && (
                     <div className="text-gray-400 text-center py-12 text-sm">

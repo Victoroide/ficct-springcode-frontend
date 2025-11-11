@@ -548,6 +548,98 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
     });
   }, [onUpdateFlowData]);
 
+  // INLINE EDITING HANDLERS - CRITICAL FIX for double-click editing
+  // ENHANCED: Now supports partial updates (name, type, etc.)
+  const handleAttributeUpdate = useCallback((nodeId: string, attributeId: string, updates: Partial<any>) => {
+    setNodes(prevNodes => {
+      const updatedNodes = prevNodes.map(node => {
+        if (node.id !== nodeId) return node;
+        
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            attributes: node.data.attributes?.map(attr =>
+              attr.id === attributeId
+                ? { ...attr, ...updates }
+                : attr
+            )
+          }
+        };
+      });
+      
+      // Notify parent with updated nodes
+      if (onUpdateFlowData) {
+        setEdges(prevEdges => {
+          onUpdateFlowData(updatedNodes, prevEdges);
+          return prevEdges;
+        });
+      }
+      
+      return updatedNodes;
+    });
+  }, [onUpdateFlowData]);
+
+  const handleMethodUpdate = useCallback((nodeId: string, methodId: string, newName: string) => {
+    setNodes(prevNodes => {
+      const updatedNodes = prevNodes.map(node => {
+        if (node.id !== nodeId) return node;
+        
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            methods: node.data.methods?.map(method =>
+              method.id === methodId
+                ? { ...method, name: newName }
+                : method
+            )
+          }
+        };
+      });
+      
+      // Notify parent with updated nodes
+      if (onUpdateFlowData) {
+        setEdges(prevEdges => {
+          onUpdateFlowData(updatedNodes, prevEdges);
+          return prevEdges;
+        });
+      }
+      
+      return updatedNodes;
+    });
+  }, [onUpdateFlowData]);
+
+  const handleEnumValueUpdate = useCallback((nodeId: string, enumValueId: string, newName: string) => {
+    setNodes(prevNodes => {
+      const updatedNodes = prevNodes.map(node => {
+        if (node.id !== nodeId) return node;
+        
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            enumValues: node.data.enumValues?.map(enumValue =>
+              enumValue.id === enumValueId
+                ? { ...enumValue, name: newName }
+                : enumValue
+            )
+          }
+        };
+      });
+      
+      // Notify parent with updated nodes
+      if (onUpdateFlowData) {
+        setEdges(prevEdges => {
+          onUpdateFlowData(updatedNodes, prevEdges);
+          return prevEdges;
+        });
+      }
+      
+      return updatedNodes;
+    });
+  }, [onUpdateFlowData]);
+
   // Pass handlers via node data to avoid recreating nodeTypes
   // This fixes React Flow warning about recreating nodeTypes
   const enhancedNodes = useMemo(() => {
@@ -558,10 +650,14 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
         onEdit: node.type === 'class' ? openClassEditor :
                 node.type === 'interface' ? openInterfaceEditor :
                 node.type === 'enum' ? openEnumEditor : undefined,
-        onUpdateLabel: handleNodeLabelUpdate
+        onUpdateLabel: handleNodeLabelUpdate,
+        // INLINE EDITING HANDLERS - Enable double-click editing
+        onUpdateAttribute: handleAttributeUpdate,
+        onUpdateMethod: handleMethodUpdate,
+        onUpdateEnumValue: handleEnumValueUpdate
       }
     }));
-  }, [nodes, openClassEditor, openInterfaceEditor, openEnumEditor, handleNodeLabelUpdate]);
+  }, [nodes, openClassEditor, openInterfaceEditor, openEnumEditor, handleNodeLabelUpdate, handleAttributeUpdate, handleMethodUpdate, handleEnumValueUpdate]);
 
   return (
     <div className="w-full h-full" ref={reactFlowWrapper}>

@@ -537,6 +537,123 @@
   margin: 4px 0;
 }
 
+/* INLINE EDITING STYLES - CRITICAL FIX for double-click editing */
+.editable-item {
+  cursor: text;
+  user-select: text;
+  pointer-events: auto;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.2s ease, border 0.2s ease;
+  position: relative;
+}
+
+.editable-item:hover {
+  background-color: rgba(52, 152, 219, 0.08);
+  border-left: 3px solid rgba(52, 152, 219, 0.4) !important;
+}
+
+/* ENHANCED: Separate editable fields for name and type */
+.editable-multi-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editable-field {
+  padding: 2px 4px;
+  border-radius: 2px;
+  transition: background-color 0.2s ease;
+  cursor: text;
+}
+
+.editable-field:hover {
+  background-color: rgba(52, 152, 219, 0.12);
+  outline: 1px dashed rgba(52, 152, 219, 0.4);
+}
+
+.editable-item:hover::after {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.65rem;
+  color: #3498db;
+  opacity: 0.7;
+  font-style: italic;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.inline-edit-input {
+  width: auto;
+  min-width: 80px;
+  max-width: 100%;
+  border: 2px solid #3498db;
+  background: white;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  font-weight: inherit;
+  border-radius: 3px;
+  outline: none;
+  pointer-events: auto;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+  z-index: 10;
+  position: relative;
+}
+
+.inline-edit-input:focus {
+  border-color: #2980b9;
+  box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.3);
+}
+
+.attribute-name-input {
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+.method-name-input {
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+.enum-name-input {
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+.attribute-type-select {
+  display: inline-block;
+  vertical-align: baseline;
+  min-width: 100px;
+  padding: 2px 6px;
+  border: 2px solid #3498db;
+  border-radius: 3px;
+  background: white;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Ensure UML nodes allow interaction */
+.uml-node {
+  pointer-events: auto !important;
+}
+
+.uml-node-section {
+  pointer-events: auto !important;
+}
+
+.uml-attribute,
+.uml-method,
+.uml-enum-constant {
+  pointer-events: auto !important;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .uml-node {
@@ -552,5 +669,9 @@
   .uml-record-component,
   .uml-enum-constant {
     font-size: 0.7rem;
+  }
+
+  .editable-item:hover::after {
+    display: none; /* Hide tooltip on mobile */
   }
 }

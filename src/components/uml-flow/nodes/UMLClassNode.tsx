@@ -7,6 +7,7 @@ import React, { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import type { NodeProps } from 'reactflow';
 import type { UMLNodeData, UMLVisibility } from '../types';
+import { EditableAttribute, EditableMethod } from './InlineEditableComponents';
 
 // Helper function to render visibility symbol
 const getVisibilitySymbol = (visibility: UMLVisibility): string => {
@@ -27,9 +28,11 @@ const getVisibilitySymbol = (visibility: UMLVisibility): string => {
 interface UMLClassNodeProps extends NodeProps<UMLNodeData> {
   onEdit?: (nodeData: UMLNodeData) => void;
   onUpdateLabel?: (nodeId: string, newLabel: string) => void;
+  onUpdateAttribute?: (nodeId: string, attributeId: string, newName: string) => void;
+  onUpdateMethod?: (nodeId: string, methodId: string, newName: string) => void;
 }
 
-const UMLClassNode: React.FC<UMLClassNodeProps> = ({ id, data, isConnectable, selected, onEdit, onUpdateLabel }) => {
+const UMLClassNode: React.FC<UMLClassNodeProps> = ({ id, data, isConnectable, selected, onEdit, onUpdateLabel, onUpdateAttribute, onUpdateMethod }) => {
   const [isEditingName, setIsEditingName] = React.useState(false);
   const [editedName, setEditedName] = React.useState(data.label || '');
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -312,20 +315,29 @@ const UMLClassNode: React.FC<UMLClassNodeProps> = ({ id, data, isConnectable, se
         )}
       </div>
 
-      {/* Attributes section - Always visible */}
+      {/* Attributes section - Always visible with inline editing */}
       <div className="uml-node-section attributes-section">
         {attributes.length > 0 ? (
-          attributes.map((attr) => (
-            <div key={attr.id} className="uml-attribute">
-              <span className="visibility-indicator">
-                {getVisibilitySymbol(attr.visibility)}
-              </span>{' '}
-              <span className="attribute-name">{attr.name}</span>
-              <span className="attribute-separator">:</span>
-              <span className="attribute-type">{attr.type}</span>
-              {attr.isStatic && <span className="static-indicator"> (static)</span>}
-            </div>
-          ))
+          attributes.map((attr) => {
+            const updateHandler = (data as any).onUpdateAttribute || onUpdateAttribute;
+            return updateHandler ? (
+              <EditableAttribute
+                key={attr.id}
+                attribute={attr}
+                onUpdate={(attrId, newName) => updateHandler(id, attrId, newName)}
+              />
+            ) : (
+              <div key={attr.id} className="uml-attribute">
+                <span className="visibility-indicator">
+                  {getVisibilitySymbol(attr.visibility)}
+                </span>{' '}
+                <span className="attribute-name">{attr.name}</span>
+                <span className="attribute-separator">:</span>
+                <span className="attribute-type">{attr.type}</span>
+                {attr.isStatic && <span className="static-indicator"> (static)</span>}
+              </div>
+            );
+          })
         ) : (
           <div className="uml-empty-section">
             <span className="uml-placeholder-text">(no attributes)</span>
@@ -336,24 +348,33 @@ const UMLClassNode: React.FC<UMLClassNodeProps> = ({ id, data, isConnectable, se
       {/* Separator line */}
       <div className="uml-section-separator"></div>
 
-      {/* Methods section - Always visible */}
+      {/* Methods section - Always visible with inline editing */}
       <div className="uml-node-section methods-section">
         {methods.length > 0 ? (
-          methods.map((method) => (
-            <div key={method.id} className="uml-method">
-              <span className="visibility-indicator">
-                {getVisibilitySymbol(method.visibility)}
-              </span>{' '}
-              <span className="method-name">{method.name}</span>
-              <span className="method-params">
-                ({method.parameters?.map(p => `${p.name}: ${p.type}`).join(', ') || ''})
-              </span>
-              <span className="method-separator">:</span>
-              <span className="method-type">{method.returnType}</span>
-              {method.isStatic && <span className="static-indicator"> (static)</span>}
-              {method.isAbstract && <span className="abstract-indicator"> (abstract)</span>}
-            </div>
-          ))
+          methods.map((method) => {
+            const updateHandler = (data as any).onUpdateMethod || onUpdateMethod;
+            return updateHandler ? (
+              <EditableMethod
+                key={method.id}
+                method={method}
+                onUpdate={(methodId, newName) => updateHandler(id, methodId, newName)}
+              />
+            ) : (
+              <div key={method.id} className="uml-method">
+                <span className="visibility-indicator">
+                  {getVisibilitySymbol(method.visibility)}
+                </span>{' '}
+                <span className="method-name">{method.name}</span>
+                <span className="method-params">
+                  ({method.parameters?.map(p => `${p.name}: ${p.type}`).join(', ') || ''})
+                </span>
+                <span className="method-separator">:</span>
+                <span className="method-type">{method.returnType}</span>
+                {method.isStatic && <span className="static-indicator"> (static)</span>}
+                {method.isAbstract && <span className="abstract-indicator"> (abstract)</span>}
+              </div>
+            );
+          })
         ) : (
           <div className="uml-empty-section">
             <span className="uml-placeholder-text">(no methods)</span>
