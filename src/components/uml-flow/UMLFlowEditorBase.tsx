@@ -317,6 +317,7 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
   const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
     event.preventDefault();
     event.stopPropagation();
+    console.log('[UMLFlowEditor] Edge clicked - Opening modal with data:', edge.data);
     setSelectedEdge(edge);
     setSelectedNode(null);
     setShowPropertiesPanel(false);
@@ -348,10 +349,26 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
 
     setEdges(updatedEdges);
 
+    // CRITICAL UX FIX: Update selectedEdge reference to new edge object
+    // This ensures modal displays fresh data when user re-opens it
+    if (selectedEdge && selectedEdge.id === edgeId) {
+      const updatedEdge = updatedEdges.find(e => e.id === edgeId);
+      if (updatedEdge) {
+        setSelectedEdge(updatedEdge);
+      }
+    }
+
+    // CRITICAL FIX: Notify parent component about edge data changes
+    // This ensures modal edits propagate to parent state for saving
     if (onUpdateFlowData) {
       onUpdateFlowData(nodes, updatedEdges);
     }
-  }, [edges, nodes, onUpdateFlowData]);
+    
+    // CRITICAL FIX: Also call onEdgesUpdate to sync with parent
+    if (onEdgesUpdate) {
+      onEdgesUpdate(updatedEdges);
+    }
+  }, [edges, nodes, onUpdateFlowData, onEdgesUpdate, selectedEdge]);
 
   // Delete selected elements
   const deleteSelectedElements = useCallback(() => {
@@ -410,6 +427,7 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
   }, []);
 
   const closeRelationshipPanel = useCallback(() => {
+    console.log('[UMLFlowEditor] Closing relationship panel');
     setShowRelationshipPanel(false);
     setSelectedEdge(null);
   }, []);
@@ -744,6 +762,7 @@ const UMLFlowEditorFixed: React.FC<UMLFlowEditorFixedProps> = ({
       {/* Relationship Panel */}
       {showRelationshipPanel && selectedEdge && (
         <UMLRelationshipPanel
+          key={`${selectedEdge.id}-${selectedEdge.data?.relationshipType || 'none'}`}
           edge={selectedEdge}
           onUpdateEdge={updateEdgeData}
           onClose={closeRelationshipPanel}

@@ -36,16 +36,32 @@ export class SimpleCodeGenerator {
       const classNodes = this.nodes.filter(node => 
         node.data && (node.data.nodeType === 'class' || !node.data.nodeType)
       );
+      
+      // CRITICAL FIX: Find interface nodes (targets of REALIZATION relationships)
+      const interfaceNodeIds = new Set<string>();
+      this.edges.filter(e => e.type === 'umlRelationship' && e.data?.relationshipType === 'REALIZATION')
+        .forEach(e => interfaceNodeIds.add(e.target));
+      
+      const interfaceNodes = this.nodes.filter(node => 
+        interfaceNodeIds.has(node.id) || node.data?.nodeType === 'interface'
+      );
+      
       // Collect class data for Postman collection (including attributes)
       const classData: Array<{ name: string; attributes: any[] }> = [];
+      
+      // Generate interfaces first (so classes can implement them)
+      interfaceNodes.forEach(node => {
+        const interfaceName = this.formatClassName(node.data.label || 'Interface');
+        files.push(this.generateInterface(interfaceName, node.data));
+      });
       
       classNodes.forEach(node => {
         const className = this.formatClassName(node.data.label || 'Entity');
         const attributes = node.data.properties || node.data.attributes || [];
         classData.push({ name: className, attributes });
         
-        // Generar archivos para cada clase
-        files.push(this.generateEntity(className, node.data));
+        // Generar archivos para cada clase (CRITICAL FIX: Pass node.id for relationship processing)
+        files.push(this.generateEntity(className, node.data, node.id));
         files.push(this.generateDTO(className, node.data));
         files.push(this.generateRepository(className));
         files.push(this.generateService(className, node.data));
@@ -384,16 +400,20 @@ public class HealthController {
    * CRITICAL FIX: Filters out system-generated fields (id, createdAt, updatedAt) from user attributes
    * to prevent duplicate field declarations. These fields are automatically added to every entity.
    * 
+   * CRITICAL FIX 2: Processes UML relationships (umlRelationship edges) to generate JPA annotations
+   * based on multiplicity (* = many, 1 = one). Generates @ManyToOne on "many" side and @OneToMany on "one" side.
+   * 
    * Generated structure:
    * - @Id field: Long id (auto-generated, ALWAYS present)
    * - User attributes: from UML diagram (FILTERED to exclude id, createdAt, updatedAt)
+   * - Relationship fields: from UML edges with proper JPA annotations
    * - Timestamps: createdAt, updatedAt (auto-generated, ALWAYS present)
    * 
    * @param className The name of the Java class (e.g., "Pet", "Owner")
    * @param nodeData UML node data containing attributes array
    * @returns GeneratedFile object with Entity source code
    */
-  private generateEntity(className: string, nodeData: any): GeneratedFile {
+  private generateEntity(className: string, nodeData: any, currentNodeId: string): GeneratedFile {
     const cleanProjectName = this.config.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
     const packageName = `${this.config.groupId}.${cleanProjectName}.entity`;
     
@@ -407,6 +427,9 @@ public class HealthController {
     
     // Obtener todas las relaciones entre atributos
     const relationshipMap = this.findAttributeRelationships();
+    
+    // CRITICAL FIX: Obtener relaciones UML normales (umlRelationship edges)
+    const umlRelationships = this.findUMLRelationships(currentNodeId, className);
     
     // Importaciones adicionales necesarias para las relaciones
     const additionalImports = new Set<string>();
@@ -504,31 +527,131 @@ public class HealthController {
       ...Array.from(additionalImports).sort()
     ].join('\n');
     
+    // CRITICAL FIX: Agregar campos de relaciones UML
+    const relationshipFields: string[] = [];
+    
+    for (const rel of umlRelationships) {
+      const { targetClassName, fieldName, annotation, fieldType, imports } = rel;
+      
+      // Add imports
+      imports.forEach(imp => additionalImports.add(imp));
+      
+      // Add field
+      relationshipFields.push(`${annotation}
+    private ${fieldType} ${fieldName};`);
+    }
+    
+    // CRITICAL FIX: Check for INHERITANCE and REALIZATION relationships
+    const superclass = this.findSuperclass(currentNodeId);
+    const interfaces = this.findImplementedInterfaces(currentNodeId);
+    const isAbstract = this.isInheritanceRoot(currentNodeId);
+    
+    // Add superclass import if present
+    if (superclass) {
+      additionalImports.add(`import ${packageName}.${superclass};`);
+    }
+    
+    // Add interface imports
+    interfaces.forEach(interfaceName => {
+      additionalImports.add(`import ${packageName}.${interfaceName};`);
+    });
+    
+    // Regenerate imports after adding relationship imports
+    const finalImportsSection = [
+      'import javax.persistence.*;',
+      'import lombok.Data;',
+      'import lombok.NoArgsConstructor;',
+      'import lombok.AllArgsConstructor;',
+      'import java.time.LocalDateTime;',
+      ...Array.from(additionalImports).sort()
+    ].join('\n');
+    
+    // Build class declaration
+    const abstractModifier = isAbstract ? 'abstract ' : '';
+    const extendsClause = superclass ? ` extends ${superclass}` : '';
+    const implementsClause = interfaces.length > 0 ? ` implements ${interfaces.join(', ')}` : '';
+    
+    // Build inheritance annotation (only for root classes)
+    const inheritanceAnnotation = isAbstract ? `@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "dtype")
+` : '';
+    
+    // Build discriminator annotation (for subclasses)
+    const discriminatorAnnotation = superclass ? `@DiscriminatorValue("${className.toUpperCase()}")
+` : '';
+    
     const content = `package ${packageName};
 
-${importsSection}
+${finalImportsSection}
 
 @Entity
 @Table(name = "${className.toLowerCase()}s")
-@Data
+${inheritanceAnnotation}${discriminatorAnnotation}@Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ${className} {
-    
+public ${abstractModifier}class ${className}${extendsClause}${implementsClause} {
+    ${superclass ? '// Inherits id from ' + superclass : `
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long id;`}
 ${attributeEntries.length > 0 ? '\n\n' + attributeEntries.join('\n\n') : ''}
-    
+${relationshipFields.length > 0 ? '\n\n' + relationshipFields.join('\n\n') : ''}
+    ${superclass ? '// Inherits timestamps from ' + superclass : `
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
     
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    private LocalDateTime updatedAt = LocalDateTime.now();`}
 }`;
 
     return {
       path: `${className}.java`,
+      content,
+      language: 'other'
+    };
+  }
+
+  /**
+   * Generate Java Interface
+   * 
+   * UML REALIZATION: Interfaces define contracts without implementation.
+   * They are NOT JPA entities, just Java interfaces.
+   * 
+   * @param interfaceName The name of the interface (e.g., "Payable", "Auditable")
+   * @param nodeData UML node data containing methods
+   * @returns GeneratedFile object with Interface source code
+   */
+  private generateInterface(interfaceName: string, nodeData: any): GeneratedFile {
+    const cleanProjectName = this.config.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+    const packageName = `${this.config.groupId}.${cleanProjectName}.entity`;
+    
+    // Get methods from node data
+    const methods = nodeData.methods || [];
+    
+    // Generate method signatures (no implementation)
+    const methodSignatures = methods.map((method: any) => {
+      const methodName = this.validateJavaName(method.name || 'method');
+      const returnType = this.mapType(method.returnType || 'void');
+      const params = method.parameters || [];
+      const paramStr = params.map((p: any) => 
+        `${this.mapType(p.type)} ${this.validateJavaName(p.name)}`
+      ).join(', ');
+      
+      return `    ${returnType} ${methodName}(${paramStr});`;
+    }).join('\n\n');
+    
+    const content = `package ${packageName};
+
+/**
+ * ${interfaceName} Interface
+ * Generated from UML REALIZATION relationship
+ */
+public interface ${interfaceName} {
+${methodSignatures || '    // No methods defined'}
+}`;
+
+    return {
+      path: `${interfaceName}.java`,
       content,
       language: 'other'
     };
@@ -1584,6 +1707,332 @@ Generation date: ${new Date().toLocaleString()}
     };
     
     return exampleMap[lowercaseType] || 'Example Value';
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════
+   * UML 2.5 INHERITANCE AND REALIZATION HELPERS
+   * ═══════════════════════════════════════════════════════════════════
+   */
+
+  /**
+   * Find superclass for a given node (if it has INHERITANCE relationship)
+   * Returns superclass name or null
+   */
+  private findSuperclass(nodeId: string): string | null {
+    const inheritanceEdge = this.edges.find(edge => 
+      edge.type === 'umlRelationship' &&
+      edge.data?.relationshipType === 'INHERITANCE' &&
+      edge.source === nodeId
+    );
+    
+    if (!inheritanceEdge) return null;
+    
+    const superNode = this.nodes.find(n => n.id === inheritanceEdge.target);
+    return superNode ? this.formatClassName(superNode.data.label || 'SuperClass') : null;
+  }
+
+  /**
+   * Find all interfaces that a class implements (REALIZATION relationships)
+   * Returns array of interface names
+   */
+  private findImplementedInterfaces(nodeId: string): string[] {
+    const realizationEdges = this.edges.filter(edge => 
+      edge.type === 'umlRelationship' &&
+      edge.data?.relationshipType === 'REALIZATION' &&
+      edge.source === nodeId
+    );
+    
+    return realizationEdges.map(edge => {
+      const interfaceNode = this.nodes.find(n => n.id === edge.target);
+      return interfaceNode ? this.formatClassName(interfaceNode.data.label || 'Interface') : null;
+    }).filter(name => name !== null) as string[];
+  }
+
+  /**
+   * Check if a node is a superclass (target of INHERITANCE)
+   * If so, it should be abstract and have @Inheritance annotation
+   */
+  private isInheritanceRoot(nodeId: string): boolean {
+    return this.edges.some(edge => 
+      edge.type === 'umlRelationship' &&
+      edge.data?.relationshipType === 'INHERITANCE' &&
+      edge.target === nodeId
+    );
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════
+   * UML 2.5 MULTIPLICITY HELPER METHODS
+   * ═══════════════════════════════════════════════════════════════════
+   */
+
+  /**
+   * Parse multiplicity string to determine if it represents "many"
+   * Supports: *, 0..*, 1..*, n..m (where m > 1)
+   */
+  private isMany(multiplicity: string | undefined): boolean {
+    if (!multiplicity) return false;
+    
+    const mult = multiplicity.trim();
+    
+    // Direct many indicators
+    if (mult === '*' || mult === '0..*' || mult === '1..*') return true;
+    
+    // Range notation (e.g., 2..5, 1..n)
+    if (mult.includes('..')) {
+      const parts = mult.split('..');
+      const upper = parts[1];
+      
+      // Unbounded upper (n, *, etc.)
+      if (upper === '*' || upper === 'n') return true;
+      
+      // Numeric upper > 1
+      const upperNum = parseInt(upper);
+      if (!isNaN(upperNum) && upperNum > 1) return true;
+    }
+    
+    return false;
+  }
+
+  /**
+   * Determine if multiplicity requires non-null (mandatory relationship)
+   * 1, 1..*, 1..n → required (nullable = false)
+   * 0..1, 0..*, * → optional (nullable = true)
+   */
+  private isRequired(multiplicity: string | undefined): boolean {
+    if (!multiplicity) return false;
+    
+    const mult = multiplicity.trim();
+    
+    // Starts with 1 (except just '1' which we check separately)
+    if (mult === '1') return true;
+    if (mult.startsWith('1..')) return true;
+    
+    return false;
+  }
+
+  /**
+   * Determine cardinality between two entities based on multiplicities
+   * Returns: 'OneToOne' | 'OneToMany' | 'ManyToOne' | 'ManyToMany'
+   */
+  private determineCardinality(sourceMult: string | undefined, targetMult: string | undefined): string {
+    const sourceIsMany = this.isMany(sourceMult);
+    const targetIsMany = this.isMany(targetMult);
+    
+    if (sourceIsMany && targetIsMany) {
+      return 'ManyToMany';
+    } else if (sourceIsMany && !targetIsMany) {
+      return 'ManyToOne';
+    } else if (!sourceIsMany && targetIsMany) {
+      return 'OneToMany';
+    } else {
+      return 'OneToOne';
+    }
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════
+   * UML 2.5 RELATIONSHIP PROCESSING - ALL 7 TYPES
+   * ═══════════════════════════════════════════════════════════════════
+   * 
+   * CRITICAL FIX: Comprehensive implementation of all UML 2.5 relationship types:
+   * 1. ASSOCIATION - Basic bidirectional reference with multiplicity
+   * 2. AGGREGATION - Weak containment (no cascade delete)
+   * 3. COMPOSITION - Strong containment (cascade ALL + orphanRemoval)
+   * 4. INHERITANCE - Class extends superclass (handled separately)
+   * 5. REALIZATION - Class implements interface (handled separately)
+   * 6. DEPENDENCY - Constructor injection, no JPA annotation
+   * 7. Multiplicity - Determines OneToOne/OneToMany/ManyToOne/ManyToMany
+   * 
+   * @param currentNodeId ID del nodo actual (entidad)
+   * @param currentClassName Nombre de la clase actual
+   * @returns Array de objetos con información de campo de relación
+   */
+  private findUMLRelationships(currentNodeId: string, currentClassName: string): Array<{
+    targetClassName: string;
+    fieldName: string;
+    annotation: string;
+    fieldType: string;
+    imports: string[];
+  }> {
+    const relationships: Array<{
+      targetClassName: string;
+      fieldName: string;
+      annotation: string;
+      fieldType: string;
+      imports: string[];
+    }> = [];
+    
+    const cleanProjectName = this.config.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+    const packageName = `${this.config.groupId}.${cleanProjectName}.entity`;
+    
+    // Filter UML relationship edges for current node
+    const umlEdges = this.edges.filter(edge => 
+      edge.type === 'umlRelationship' && 
+      edge.data &&
+      (edge.source === currentNodeId || edge.target === currentNodeId)
+    );
+    
+    for (const edge of umlEdges) {
+      const { relationshipType, sourceMultiplicity, targetMultiplicity } = edge.data;
+      
+      // Skip INHERITANCE and REALIZATION (handled separately)
+      if (relationshipType === 'INHERITANCE' || relationshipType === 'REALIZATION') {
+        continue;
+      }
+      
+      // Determine if current node is source or target
+      const isSource = edge.source === currentNodeId;
+      const relatedNodeId = isSource ? edge.target : edge.source;
+      const relatedNode = this.nodes.find(n => n.id === relatedNodeId);
+      
+      if (!relatedNode) {
+        console.warn(`[CodeGenerator] Related node not found: ${relatedNodeId}`);
+        continue;
+      }
+      
+      const relatedClassName = this.formatClassName(relatedNode.data.label || 'Entity');
+      const fieldNameBase = relatedClassName.charAt(0).toLowerCase() + relatedClassName.slice(1);
+      
+      let annotation = '';
+      let fieldType = '';
+      let fieldName = '';
+      const imports: string[] = [];
+      
+      // Get multiplicities from current perspective
+      const currentMultiplicity = isSource ? sourceMultiplicity : targetMultiplicity;
+      const relatedMultiplicity = isSource ? targetMultiplicity : sourceMultiplicity;
+      
+      // Determine cardinality using helper method
+      const cardinality = this.determineCardinality(currentMultiplicity, relatedMultiplicity);
+      
+      // Determine nullable based on multiplicity
+      const nullable = !this.isRequired(currentMultiplicity);
+      const nullableStr = nullable ? ', nullable = true' : '';
+      
+      // ═══════════════════════════════════════════════════════════════
+      // HANDLE EACH RELATIONSHIP TYPE
+      // ═══════════════════════════════════════════════════════════════
+      
+      if (relationshipType === 'DEPENDENCY') {
+        // ────────────────────────────────────────────────────────────
+        // DEPENDENCY: Constructor injection, NO JPA annotation
+        // ────────────────────────────────────────────────────────────
+        // Dependencies are NOT persisted relationships
+        // Generate private final field for dependency injection
+        annotation = `    // Dependency injection (not persisted)
+    private final ${relatedClassName} ${fieldNameBase};`;
+        fieldType = relatedClassName;
+        fieldName = fieldNameBase;
+        imports.push(`import ${packageName}.${relatedClassName};`);
+        
+      } else if (relationshipType === 'ASSOCIATION') {
+        // ────────────────────────────────────────────────────────────
+        // ASSOCIATION: Standard bidirectional reference
+        // ────────────────────────────────────────────────────────────
+        if (cardinality === 'ManyToOne') {
+          annotation = `    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "${fieldNameBase}_id"${nullableStr})`;
+          fieldType = relatedClassName;
+          fieldName = fieldNameBase;
+          imports.push('import javax.persistence.ManyToOne;', 'import javax.persistence.FetchType;', 'import javax.persistence.JoinColumn;');
+        } else if (cardinality === 'OneToMany') {
+          annotation = `    @OneToMany(mappedBy = "${currentClassName.toLowerCase()}")`;
+          fieldType = `List<${relatedClassName}>`;
+          fieldName = fieldNameBase + 's';
+          imports.push('import javax.persistence.OneToMany;', 'import java.util.List;', 'import java.util.ArrayList;');
+        } else if (cardinality === 'ManyToMany') {
+          if (isSource) {
+            annotation = `    @ManyToMany
+    @JoinTable(name = "${currentClassName.toLowerCase()}_${relatedClassName.toLowerCase()}",
+        joinColumns = @JoinColumn(name = "${currentClassName.toLowerCase()}_id"),
+        inverseJoinColumns = @JoinColumn(name = "${relatedClassName.toLowerCase()}_id"))`;
+            imports.push('import javax.persistence.ManyToMany;', 'import javax.persistence.JoinTable;', 'import javax.persistence.JoinColumn;');
+          } else {
+            annotation = `    @ManyToMany(mappedBy = "${fieldNameBase}s")`;
+            imports.push('import javax.persistence.ManyToMany;');
+          }
+          fieldType = `Set<${relatedClassName}>`;
+          fieldName = fieldNameBase + 's';
+          imports.push('import java.util.Set;', 'import java.util.HashSet;');
+        } else { // OneToOne
+          if (isSource) {
+            annotation = `    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "${fieldNameBase}_id"${nullableStr})`;
+            imports.push('import javax.persistence.JoinColumn;');
+          } else {
+            annotation = `    @OneToOne(mappedBy = "${currentClassName.toLowerCase()}")`;
+          }
+          fieldType = relatedClassName;
+          fieldName = fieldNameBase;
+          imports.push('import javax.persistence.OneToOne;', 'import javax.persistence.FetchType;');
+        }
+        imports.push(`import ${packageName}.${relatedClassName};`);
+        
+      } else if (relationshipType === 'AGGREGATION') {
+        // ────────────────────────────────────────────────────────────
+        // AGGREGATION: Weak containment, NO cascade delete
+        // ────────────────────────────────────────────────────────────
+        if (cardinality === 'ManyToOne') {
+          annotation = `    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "${fieldNameBase}_id"${nullableStr})`;
+          fieldType = relatedClassName;
+          fieldName = fieldNameBase;
+          imports.push('import javax.persistence.ManyToOne;', 'import javax.persistence.FetchType;', 'import javax.persistence.JoinColumn;');
+        } else if (cardinality === 'OneToMany') {
+          // NO CASCADE for aggregation (weak ownership)
+          annotation = `    @OneToMany(mappedBy = "${currentClassName.toLowerCase()}")`;
+          fieldType = `List<${relatedClassName}>`;
+          fieldName = fieldNameBase + 's';
+          imports.push('import javax.persistence.OneToMany;', 'import java.util.List;', 'import java.util.ArrayList;');
+        } else { // OneToOne or ManyToMany
+          annotation = `    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "${fieldNameBase}_id"${nullableStr})`;
+          fieldType = relatedClassName;
+          fieldName = fieldNameBase;
+          imports.push('import javax.persistence.OneToOne;', 'import javax.persistence.FetchType;', 'import javax.persistence.JoinColumn;');
+        }
+        imports.push(`import ${packageName}.${relatedClassName};`);
+        
+      } else if (relationshipType === 'COMPOSITION') {
+        // ────────────────────────────────────────────────────────────
+        // COMPOSITION: Strong containment, CASCADE ALL + orphanRemoval
+        // ────────────────────────────────────────────────────────────
+        if (cardinality === 'ManyToOne') {
+          // Part side of composition (required, cannot be null)
+          annotation = `    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "${fieldNameBase}_id", nullable = false)`;
+          fieldType = relatedClassName;
+          fieldName = fieldNameBase;
+          imports.push('import javax.persistence.ManyToOne;', 'import javax.persistence.FetchType;', 'import javax.persistence.JoinColumn;');
+        } else if (cardinality === 'OneToMany') {
+          // Owner side of composition (cascade ALL + orphanRemoval)
+          annotation = `    @OneToMany(mappedBy = "${currentClassName.toLowerCase()}", cascade = CascadeType.ALL, orphanRemoval = true)`;
+          fieldType = `List<${relatedClassName}>`;
+          fieldName = fieldNameBase + 's';
+          imports.push('import javax.persistence.OneToMany;', 'import javax.persistence.CascadeType;', 'import java.util.List;', 'import java.util.ArrayList;');
+        } else { // OneToOne
+          annotation = `    @OneToOne(mappedBy = "${currentClassName.toLowerCase()}", cascade = CascadeType.ALL, orphanRemoval = true)`;
+          fieldType = relatedClassName;
+          fieldName = fieldNameBase;
+          imports.push('import javax.persistence.OneToOne;', 'import javax.persistence.CascadeType;');
+        }
+        imports.push(`import ${packageName}.${relatedClassName};`);
+      }
+      
+      if (annotation && fieldType && fieldName) {
+        relationships.push({
+          targetClassName: relatedClassName,
+          fieldName: this.validateJavaName(fieldName),
+          annotation,
+          fieldType,
+          imports
+        });
+      }
+    }
+    
+    return relationships;
   }
 
   /**

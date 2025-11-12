@@ -32,6 +32,12 @@ const UMLRelationshipPanel: React.FC<UMLRelationshipPanelProps> = ({
   // Local state for label input to avoid re-render issues
   const [labelValue, setLabelValue] = useState(data.label || '');
 
+  // CRITICAL UX FIX: Sync label state when edge data changes
+  // This ensures modal displays fresh data when user re-opens it
+  useEffect(() => {
+    setLabelValue(edge.data?.label || '');
+  }, [edge.data?.label, edge.id]);
+
   const handleRelationshipTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -61,11 +67,6 @@ const UMLRelationshipPanel: React.FC<UMLRelationshipPanelProps> = ({
       targetMultiplicity: multiplicity
     });
   };
-
-  // Update local state when edge data changes (from external updates)
-  useEffect(() => {
-    setLabelValue(data.label || '');
-  }, [data.label]);
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Only update local state, don't trigger edge update on every keystroke
