@@ -756,12 +756,13 @@ ${methodSignatures || '    // No methods defined'}
 
       // Determine relationship cardinality
       const targetIsMany = this.isMany(targetMultiplicity);
+      const sourceIsMany = this.isMany(sourceMultiplicity);
       
       // CRITICAL FIX: Only add FK field for @ManyToOne and @OneToOne
       // The key is checking if TARGET is "one" (not "many")
       // 
       // Examples:
-      // - Orders (*) → Customer (1): targetMultiplicity = "1" → ADD ordersId in OrdersDTO ✓
+      // - Orders (*) → Customer (1): targetMultiplicity = "1" → ADD customerId in OrdersDTO ✓
       // - User (1) → Profile (1): targetMultiplicity = "1" → ADD profileId in UserDTO ✓
       // - Customer (1) → Orders (*): targetMultiplicity = "*" → SKIP (no FK, it's a collection) ✓
       // - Student (*) → Course (*): targetMultiplicity = "*" → SKIP (ManyToMany uses join table) ✓
@@ -771,8 +772,37 @@ ${methodSignatures || '    // No methods defined'}
         continue;
       }
       
-      // If we reach here, target is "one" - this is a @ManyToOne or @OneToOne
-      // Add FK field regardless of source multiplicity
+      // CRITICAL FIX: For OneToOne bidirectional (1:1), check if reverse relationship exists
+      // If it does, only ONE side should have the FK - use edge ID ordering to determine owner
+      if (!sourceIsMany && !targetIsMany) {
+        // This is a 1:1 relationship - check if bidirectional
+        const reverseEdge = this.edges.find(e => 
+          e.type === 'umlRelationship' &&
+          e.source === edge.target &&
+          e.target === currentNodeId &&
+          e.data?.relationshipType?.toUpperCase() === normalizedRelType
+        );
+        
+        if (reverseEdge) {
+          // Bidirectional 1:1 detected - determine which side is owner
+          // Use edge index comparison: the edge with SMALLER index is the owner side
+          const currentEdgeIndex = this.edges.indexOf(edge);
+          const reverseEdgeIndex = this.edges.indexOf(reverseEdge);
+          
+          if (currentEdgeIndex > reverseEdgeIndex) {
+            // Current edge was created AFTER reverse edge, so THIS node is the inverse side
+            // Skip FK field - it will be on the other side
+            console.log(`[findFKRelationshipsForDTO] Skipping FK for bidirectional 1:1 (inverse side): ${currentNodeId} ← ${edge.target}`);
+            continue;
+          }
+          // Otherwise, current edge was created FIRST (or same time), so THIS node is the owner side
+          // Continue to add FK field
+          console.log(`[findFKRelationshipsForDTO] Adding FK for bidirectional 1:1 (owner side): ${currentNodeId} → ${edge.target}`);
+        }
+      }
+      
+      // If we reach here, target is "one" - this is a @ManyToOne or unidirectional @OneToOne
+      // Add FK field
       const targetNode = this.nodes.find(n => n.id === edge.target);
       if (!targetNode) continue;
 
