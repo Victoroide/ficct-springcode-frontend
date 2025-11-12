@@ -93,6 +93,116 @@ export class FlutterGeneratorService {
     return this.toSnakeCase(noSpaces);
   }
 
+  private isMany(multiplicity: string | undefined): boolean {
+    if (!multiplicity) return false;
+    const m = multiplicity.toLowerCase().trim();
+    return m === '*' || m === '0..*' || m === '1..*' || m.includes('*') || m.includes('many');
+  }
+
+  private findFKRelationshipsForDTO(currentNodeId: string): Array<{
+    fieldName: string;
+    relatedClassName: string;
+    isRequired: boolean;
+  }> {
+    const fkRelationships: Array<{
+      fieldName: string;
+      relatedClassName: string;
+      isRequired: boolean;
+    }> = [];
+
+    const outgoingEdges = this.edges.filter(edge => 
+      edge.type === 'umlRelationship' &&
+      edge.source === currentNodeId &&
+      edge.data?.relationshipType
+    );
+
+    const incomingEdges = this.edges.filter(edge => 
+      edge.type === 'umlRelationship' &&
+      edge.target === currentNodeId &&
+      edge.data?.relationshipType
+    );
+
+    for (const edge of outgoingEdges) {
+      const relationshipType = edge.data.relationshipType;
+      const sourceMultiplicity = edge.data.sourceMultiplicity;
+      const targetMultiplicity = edge.data.targetMultiplicity;
+
+      const normalizedRelType = relationshipType?.toUpperCase() || '';
+
+      if (['INHERITANCE', 'REALIZATION', 'DEPENDENCY'].includes(normalizedRelType)) {
+        continue;
+      }
+
+      const targetIsMany = this.isMany(targetMultiplicity);
+      const sourceIsMany = this.isMany(sourceMultiplicity);
+
+      if (targetIsMany) {
+        continue;
+      }
+
+      if (!sourceIsMany && !targetIsMany) {
+        const reverseEdge = this.edges.find(e => 
+          e.type === 'umlRelationship' &&
+          e.source === edge.target &&
+          e.target === currentNodeId &&
+          e.data?.relationshipType?.toUpperCase() === normalizedRelType
+        );
+
+        if (reverseEdge) {
+          const currentEdgeIndex = this.edges.indexOf(edge);
+          const reverseEdgeIndex = this.edges.indexOf(reverseEdge);
+
+          if (currentEdgeIndex > reverseEdgeIndex) {
+            continue;
+          }
+        }
+      }
+
+      const targetNode = this.nodes.find(n => n.id === edge.target);
+      if (!targetNode) continue;
+
+      const relatedClassName = this.sanitizeClassName(targetNode.data.label || 'Related');
+      const fieldName = relatedClassName.charAt(0).toLowerCase() + relatedClassName.slice(1) + 'Id';
+
+      fkRelationships.push({
+        fieldName,
+        relatedClassName,
+        isRequired: false
+      });
+    }
+
+    for (const edge of incomingEdges) {
+      const relationshipType = edge.data.relationshipType;
+      const sourceMultiplicity = edge.data.sourceMultiplicity;
+      const targetMultiplicity = edge.data.targetMultiplicity;
+
+      const normalizedRelType = relationshipType?.toUpperCase() || '';
+
+      if (['INHERITANCE', 'REALIZATION', 'DEPENDENCY'].includes(normalizedRelType)) {
+        continue;
+      }
+
+      const sourceIsMany = this.isMany(sourceMultiplicity);
+      const targetIsMany = this.isMany(targetMultiplicity);
+
+      if (!sourceIsMany && targetIsMany) {
+        const sourceNode = this.nodes.find(n => n.id === edge.source);
+        if (!sourceNode) continue;
+
+        const relatedClassName = this.sanitizeClassName(sourceNode.data.label || 'Related');
+        const fieldName = relatedClassName.charAt(0).toLowerCase() + relatedClassName.slice(1) + 'Id';
+
+        fkRelationships.push({
+          fieldName,
+          relatedClassName,
+          isRequired: false
+        });
+      }
+    }
+
+    return fkRelationships;
+  }
+
   // ==========================================================================
   // MODELS GENERATION
   // ==========================================================================
@@ -102,26 +212,59 @@ export class FlutterGeneratorService {
       if (node.data?.nodeType === 'class') {
         const className = this.sanitizeClassName(node.data.label);
         const fileName = this.sanitizeFileName(node.data.label);
-        const content = this.generateDartModel(node);
+        const content = this.generateDartModel(node, node.id);
         files.set(`lib/models/${fileName}.dart`, content);
       }
     });
   }
 
-  private generateDartModel(node: any): string {
+  private generateDartModel(node: any, nodeId: string): string {
     const className = this.sanitizeClassName(node.data.label);
     const fileName = this.sanitizeFileName(node.data.label);
-    let attributes = node.data.attributes || [];
+    const allAttributes = node.data.attributes || [];
     const methods = node.data.methods || [];
 
-    // Ensure 'id' field exists (required for CRUD operations)
-    const hasId = attributes.some((attr: any) => attr.name === 'id');
-    if (!hasId) {
-      attributes = [
-        { name: 'id', type: 'Integer', visibility: 'public', isFinal: false },
-        ...attributes
-      ];
-    }
+    const fkRelationships = this.findFKRelationshipsForDTO(nodeId);
+    
+    const fkFieldNames = new Set<string>();
+    fkRelationships.forEach(fk => {
+      fkFieldNames.add(fk.fieldName.toLowerCase());
+      fkFieldNames.add(fk.fieldName.toLowerCase().replace(/_/g, ''));
+    });
+    
+    let attributes = allAttributes.filter((attr: any) => {
+      const name = attr.name?.toLowerCase();
+      
+      if (name === 'id') {
+        return false;
+      }
+      
+      const attrNameNormalized = name.replace(/_/g, '');
+      const isDuplicateFK = Array.from(fkFieldNames).some(fkName => 
+        fkName === name || fkName === attrNameNormalized
+      );
+      
+      if (isDuplicateFK) {
+        console.log(`[Flutter] ${className} - SKIPPING attribute "${attr.name}" (will be added from relationship FK)`);
+        return false;
+      }
+      
+      return true;
+    });
+
+    attributes = [
+      { name: 'id', type: 'Integer', visibility: 'public', isFinal: false },
+      ...attributes
+    ];
+
+    fkRelationships.forEach(fk => {
+      attributes.push({
+        name: fk.fieldName,
+        type: 'Integer',
+        visibility: 'public',
+        isFinal: false
+      });
+    });
 
     let code = `import 'package:json_annotation/json_annotation.dart';\n\n`;
     code += `part '${fileName}.g.dart';\n\n`;
@@ -328,24 +471,56 @@ export class FlutterGeneratorService {
     this.nodes.forEach(node => {
       if (node.data?.nodeType === 'class') {
         const fileName = this.sanitizeFileName(node.data.label);
-        const content = this.generateFormScreen(node);
+        const content = this.generateFormScreen(node, node.id);
         files.set(`lib/screens/${fileName}_form.dart`, content);
       }
     });
   }
 
-  private generateFormScreen(node: any): string {
+  private generateFormScreen(node: any, nodeId: string): string {
     const className = this.sanitizeClassName(node.data.label);
     const fileName = this.sanitizeFileName(node.data.label);
-    const attributes = node.data.attributes || [];
+    const allAttributes = node.data.attributes || [];
     const screenName = `${className}FormScreen`;
 
-    // Detect foreign key fields (fields ending with 'Id' except 'id')
-    // Only include foreign keys where the related entity exists in the diagram
-    const foreignKeys = attributes.filter((attr: any) => {
-      if (attr.name === 'id' || !attr.name.toLowerCase().endsWith('id')) {
+    const fkRelationships = this.findFKRelationshipsForDTO(nodeId);
+    
+    const fkFieldNames = new Set<string>();
+    fkRelationships.forEach(fk => {
+      fkFieldNames.add(fk.fieldName.toLowerCase());
+      fkFieldNames.add(fk.fieldName.toLowerCase().replace(/_/g, ''));
+    });
+    
+    const attributes = allAttributes.filter((attr: any) => {
+      const name = attr.name?.toLowerCase();
+      
+      if (name === 'id') {
         return false;
       }
+      
+      const attrNameNormalized = name.replace(/_/g, '');
+      const isDuplicateFK = Array.from(fkFieldNames).some(fkName => 
+        fkName === name || fkName === attrNameNormalized
+      );
+      
+      if (isDuplicateFK) {
+        console.log(`[Flutter Form] ${className} - SKIPPING attribute "${attr.name}" (will use relationship FK field)`);
+        return false;
+      }
+      
+      return true;
+    });
+
+    const fkAttributes = fkRelationships.map(fk => ({
+      name: fk.fieldName,
+      type: 'Integer',
+      visibility: 'public',
+      isFinal: false
+    }));
+
+    const allFormAttributes = [...attributes, ...fkAttributes];
+
+    const foreignKeys = fkAttributes.filter((attr: any) => {
       const relatedEntity = this.extractRelatedEntityName(attr.name);
       return this.entityExists(relatedEntity);
     });
@@ -379,14 +554,14 @@ export class FlutterGeneratorService {
     code += `  final _formKey = GlobalKey<FormState>();\n`;
 
     // Controllers for each attribute
-    attributes.forEach((attr: any) => {
+    allFormAttributes.forEach((attr: any) => {
       if (attr.type !== 'Boolean') {
         code += `  final _${attr.name}Controller = TextEditingController();\n`;
       }
     });
 
     // Boolean variables
-    attributes.forEach((attr: any) => {
+    allFormAttributes.forEach((attr: any) => {
       if (attr.type === 'Boolean') {
         code += `  bool _${attr.name} = false;\n`;
       }
@@ -412,7 +587,7 @@ export class FlutterGeneratorService {
     });
     
     code += `    if (widget.item != null) {\n`;
-    attributes.forEach((attr: any) => {
+    allFormAttributes.forEach((attr: any) => {
       if (attr.type === 'Boolean') {
         code += `      _${attr.name} = widget.item!.${attr.name} ?? false;\n`;
       } else {
@@ -436,7 +611,7 @@ export class FlutterGeneratorService {
     code += `            children: [\n`;
 
     // Generate form fields
-    attributes.forEach((attr: any) => {
+    allFormAttributes.forEach((attr: any) => {
       // Check if this is a foreign key field AND the related entity exists
       const isForeignKey = attr.name !== 'id' && 
                           attr.name.toLowerCase().endsWith('id');
@@ -537,7 +712,7 @@ export class FlutterGeneratorService {
     code += `    if (_formKey.currentState!.validate()) {\n`;
     code += `      final provider = context.read<${className}Provider>();\n`;
     code += `      final item = ${className}(\n`;
-    attributes.forEach((attr: any, index: number) => {
+    allFormAttributes.forEach((attr: any, index: number) => {
       if (attr.type === 'Boolean') {
         code += `        ${attr.name}: _${attr.name}`;
       } else if (attr.type === 'Integer' || attr.type === 'int') {
@@ -547,7 +722,7 @@ export class FlutterGeneratorService {
       } else {
         code += `        ${attr.name}: _${attr.name}Controller.text`;
       }
-      if (index < attributes.length - 1) code += ',';
+      if (index < allFormAttributes.length - 1) code += ',';
       code += '\n';
     });
     code += `      );\n\n`;

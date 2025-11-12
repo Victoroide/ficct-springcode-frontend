@@ -46,8 +46,8 @@ export class SimpleCodeGenerator {
         interfaceNodeIds.has(node.id) || node.data?.nodeType === 'interface'
       );
       
-      // Collect class data for Postman collection (including attributes)
-      const classData: Array<{ name: string; attributes: any[] }> = [];
+      // Collect class data for Postman collection (including attributes and nodeId)
+      const classData: Array<{ name: string; attributes: any[]; nodeId: string }> = [];
       
       // Generate interfaces first (so classes can implement them)
       interfaceNodes.forEach(node => {
@@ -58,7 +58,7 @@ export class SimpleCodeGenerator {
       classNodes.forEach(node => {
         const className = this.formatClassName(node.data.label || 'Entity');
         const attributes = node.data.properties || node.data.attributes || [];
-        classData.push({ name: className, attributes });
+        classData.push({ name: className, attributes, nodeId: node.id });
         
         // CRITICAL FIX: Pass node.id to all generators for relationship processing
         files.push(this.generateEntity(className, node.data, node.id));
@@ -733,10 +733,15 @@ ${methodSignatures || '    // No methods defined'}
       description: string;
     }> = [];
 
-    // Find all UML relationships where current node is the source
     const outgoingEdges = this.edges.filter(edge => 
       edge.type === 'umlRelationship' &&
       edge.source === currentNodeId &&
+      edge.data?.relationshipType
+    );
+
+    const incomingEdges = this.edges.filter(edge => 
+      edge.type === 'umlRelationship' &&
+      edge.target === currentNodeId &&
       edge.data?.relationshipType
     );
 
@@ -819,6 +824,38 @@ ${methodSignatures || '    // No methods defined'}
       });
     }
 
+    for (const edge of incomingEdges) {
+      const relationshipType = edge.data.relationshipType;
+      const sourceMultiplicity = edge.data.sourceMultiplicity;
+      const targetMultiplicity = edge.data.targetMultiplicity;
+
+      const normalizedRelType = relationshipType?.toUpperCase() || '';
+
+      if (['INHERITANCE', 'REALIZATION', 'DEPENDENCY'].includes(normalizedRelType)) {
+        continue;
+      }
+
+      const sourceIsMany = this.isMany(sourceMultiplicity);
+      const targetIsMany = this.isMany(targetMultiplicity);
+
+      if (!sourceIsMany && targetIsMany) {
+        const sourceNode = this.nodes.find(n => n.id === edge.source);
+        if (!sourceNode) continue;
+
+        const relatedClassName = this.formatClassName(sourceNode.data.label || 'Related');
+        const fieldName = relatedClassName.charAt(0).toLowerCase() + relatedClassName.slice(1) + 'Id';
+        const isRequired = this.isRequired(sourceMultiplicity);
+
+        fkRelationships.push({
+          fieldName,
+          relatedClassName,
+          relatedRepositoryName: relatedClassName + 'Repository',
+          isRequired,
+          description: `ID of the associated ${relatedClassName}`
+        });
+      }
+    }
+
     return fkRelationships;
   }
 
@@ -844,18 +881,36 @@ ${methodSignatures || '    // No methods defined'}
     const cleanProjectName = this.config.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
     const packageName = `${this.config.groupId}.${cleanProjectName}.dto`;
     
-    // CRITICAL FIX: Filter out system-generated fields (id, createdAt, updatedAt)
-    // The 'id' field is already hard-coded in the template
     const allAttributes = nodeData.properties || nodeData.attributes || [];
-    const attributes = allAttributes.filter((attr: any) => {
-      const name = attr.name?.toLowerCase();
-      return name !== 'id' && name !== 'createdat' && name !== 'updatedat';
-    });
     
-    // CRITICAL FIX: Find FK relationships for DTO
     const fkRelationships = nodeId ? this.findFKRelationshipsForDTO(nodeId) : [];
     
-    // Generate attribute fields
+    const fkFieldNames = new Set<string>();
+    fkRelationships.forEach(fk => {
+      fkFieldNames.add(fk.fieldName.toLowerCase());
+      fkFieldNames.add(fk.fieldName.toLowerCase().replace(/_/g, ''));
+    });
+    
+    const attributes = allAttributes.filter((attr: any) => {
+      const name = attr.name?.toLowerCase();
+      
+      if (name === 'id' || name === 'createdat' || name === 'updatedat') {
+        return false;
+      }
+      
+      const attrNameNormalized = name.replace(/_/g, '');
+      const isDuplicateFK = Array.from(fkFieldNames).some(fkName => 
+        fkName === name || fkName === attrNameNormalized
+      );
+      
+      if (isDuplicateFK) {
+        console.log(`[generateDTO] ${className}DTO - SKIPPING attribute "${attr.name}" (will be added from relationship FK)`);
+        return false;
+      }
+      
+      return true;
+    });
+    
     const attributeFields = attributes.map((attr: any) => 
       `    @NotNull(message = "${attr.name} cannot be null")
     @Schema(description = "${attr.name} of the ${className.toLowerCase()}", required = true)
@@ -1042,7 +1097,7 @@ public interface ${className}Repository extends JpaRepository<${className}, Long
       );
       
       if (hasConflict) {
-        console.log(`[generateService] ${className} - SKIPPING attribute "${attr.name}" from mappings (conflicts with UML relationship)`);
+        console.log(`[generateService] ${className} - SKIPPING manual attribute "${attr.name}" (will use relationship FK mapping instead)`);
         return false;
       }
       
@@ -1062,10 +1117,10 @@ public interface ${className}Repository extends JpaRepository<${className}, Long
         return `        dto.set${capitalizedName}(entity.get${capitalizedName}());`;
     }).join('\n');
     
-    // Generate FK relationship mappings for convertToDTO (entity -> dto)
     const fkToDtoMappings = fkRelationships.map(fk => {
       const capitalizedField = fk.fieldName.charAt(0).toUpperCase() + fk.fieldName.slice(1);
       const relatedGetter = 'get' + fk.relatedClassName;
+      console.log(`[generateService] ${className} - ADDING FK mapping: entity.${relatedGetter}().getId() → dto.set${capitalizedField}()`);
       return `        if (entity.${relatedGetter}() != null) {
             dto.set${capitalizedField}(entity.${relatedGetter}().getId());
         }`;
@@ -1745,33 +1800,60 @@ Generation date: ${new Date().toLocaleString()}
    */
   private generatePostmanCollection(
     cleanProjectName: string, 
-    classData: Array<{ name: string; attributes: any[] }>
+    classData: Array<{ name: string; attributes: any[]; nodeId: string }>
   ): GeneratedFile {
     const collectionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // Build request items for each entity with REAL attributes
-    const entityFolders = classData.map(({ name: className, attributes }) => {
+    // Build request items for each entity with REAL attributes + FK fields
+    const entityFolders = classData.map(({ name: className, attributes, nodeId }) => {
       const entityName = className.toLowerCase();
       const pluralName = `${entityName}s`;
       
-      // Filter system fields (id, createdAt, updatedAt)
-      const userAttributes = attributes.filter((attr: any) => {
-        const name = attr.name?.toLowerCase();
-        return name !== 'id' && name !== 'createdat' && name !== 'updatedat';
+      const fkRelationships = this.findFKRelationshipsForDTO(nodeId);
+      
+      const fkFieldNames = new Set<string>();
+      fkRelationships.forEach(fk => {
+        fkFieldNames.add(fk.fieldName.toLowerCase());
+        fkFieldNames.add(fk.fieldName.toLowerCase().replace(/_/g, ''));
       });
       
-      // Generate example body for POST (without id)
+      const userAttributes = attributes.filter((attr: any) => {
+        const name = attr.name?.toLowerCase();
+        
+        if (name === 'id' || name === 'createdat' || name === 'updatedat') {
+          return false;
+        }
+        
+        const attrNameNormalized = name.replace(/_/g, '');
+        const isDuplicateFK = Array.from(fkFieldNames).some(fkName => 
+          fkName === name || fkName === attrNameNormalized
+        );
+        
+        if (isDuplicateFK) {
+          return false;
+        }
+        
+        return true;
+      });
+      
       const createBody: any = {};
       userAttributes.forEach((attr: any) => {
         const attrName = this.validateJavaName(attr.name || 'field');
         createBody[attrName] = this.getExampleValue(attr.type || 'String');
       });
       
-      // Generate example body for PUT (with id)
+      fkRelationships.forEach(fk => {
+        createBody[fk.fieldName] = 1;
+      });
+      
       const updateBody: any = { id: 1 };
       userAttributes.forEach((attr: any) => {
         const attrName = this.validateJavaName(attr.name || 'field');
         updateBody[attrName] = this.getExampleValue(attr.type || 'String');
+      });
+      
+      fkRelationships.forEach(fk => {
+        updateBody[fk.fieldName] = 1;
       });
       
       return {
@@ -1832,7 +1914,9 @@ Generation date: ${new Date().toLocaleString()}
                 host: ['{{baseUrl}}'],
                 path: ['api', 'v1', pluralName]
               },
-              description: `Creates a new ${entityName} entity`
+              description: fkRelationships.length > 0 
+                ? `Creates a new ${entityName} entity. Required FK fields: ${fkRelationships.map(fk => `${fk.fieldName} (${fk.relatedClassName})`).join(', ')}`
+                : `Creates a new ${entityName} entity`
             }
           },
           {
@@ -1854,7 +1938,9 @@ Generation date: ${new Date().toLocaleString()}
                 host: ['{{baseUrl}}'],
                 path: ['api', 'v1', pluralName, '1']
               },
-              description: `Updates an existing ${entityName} entity`
+              description: fkRelationships.length > 0 
+                ? `Updates an existing ${entityName} entity. Required FK fields: ${fkRelationships.map(fk => `${fk.fieldName} (${fk.relatedClassName})`).join(', ')}`
+                : `Updates an existing ${entityName} entity`
             }
           },
           {
